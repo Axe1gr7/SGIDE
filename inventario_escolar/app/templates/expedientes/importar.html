@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Importar Alumnos - {{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for(modulo_prefix ~ '.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista</a>
+</div>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+
+    <div class="glass-card" style="flex: 1; min-width: 300px; max-width: 540px;">
+        <h2 style="margin-bottom: 6px;">Importación Masiva</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">
+            Módulo: <strong>{{ modulo_label }}</strong>. Puedes cargar un Excel con datos de alumnos, un ZIP con PDFs, o ambos a la vez.
+        </p>
+
+        <details style="margin-bottom: 20px;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--accent);">📋 Formato Excel (.xlsx / .xls)</summary>
+            <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 14px; margin-top: 10px;">
+                <p style="font-size: 0.85rem; margin-bottom: 8px; color: var(--text-muted);">Columnas reconocidas:</p>
+                <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text-muted);">
+                    <li><code>NOMBRE DEL ALUMNO</code> o <code>nombre</code></li>
+                    <li><code>NUMERO DE CONTROL</code> o <code>matricula</code></li>
+                    <li><code>ESPECIALIDAD</code> o <code>carrera</code></li>
+                    {% if modulo_tipo == 's' %}
+                    <li><code>INSTITUCIÓN PRESTATARIA</code> y <code>SECTOR</code></li>
+                    {% else %}
+                    <li><code>INSTITUCIÓN PRESTATARIA</code> (Empresa/Lugar)</li>
+                    {% endif %}
+                    <li>Columnas de documentos: SOL, PRESENTACIÓN, ACEPTACIÓN…</li>
+                </ul>
+            </div>
+        </details>
+
+        <details style="margin-bottom: 24px;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--accent);">🗜️ Formato ZIP de PDFs</summary>
+            <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 14px; margin-top: 10px;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                    El nombre de cada PDF debe contener el <strong>número de control / matrícula</strong> del alumno. El sistema detecta el tipo por palabras clave:
+                </p>
+                <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text-muted);">
+                    <li><code>solicitud / sol</code> → Solicitud</li>
+                    <li><code>presentacion / present</code> → Presentación</li>
+                    <li><code>aceptacion / acept</code> → Aceptación</li>
+                    <li><code>carta / constancia</code> → Carta/Constancia</li>
+                    <li><code>evaluacion / eval</code> → Evaluación</li>
+                    <li><code>liberacion / liber</code> → Liberación</li>
+                </ul>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 8px;">
+                    Ejemplo: <code>20230123_solicitud.pdf</code> → alumno <code>20230123</code>, documento Solicitud.
+                </p>
+            </div>
+        </details>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div style="margin-bottom: 20px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 8px;">📄 Archivo Excel (opcional)</label>
+                <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                    <div style="font-size: 2.5rem; margin-bottom: 10px;">📊</div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px;">Arrastra aquí o haz clic</p>
+                    <div id="fileName" style="font-weight: 600; color: var(--accent);"></div>
+                    <input type="file" name="archivo_excel" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 28px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 8px;">🗜️ Archivo ZIP con PDFs (opcional)</label>
+                <div id="dropZoneZip" class="drop-zone" onclick="document.getElementById('fileInputZip').click()">
+                    <div style="font-size: 2.5rem; margin-bottom: 10px;">📁</div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px;">Arrastra aquí o haz clic</p>
+                    <div id="fileNameZip" style="font-weight: 600; color: var(--accent);"></div>
+                    <input type="file" name="archivo_zip" id="fileInputZip" accept=".zip" style="display:none;">
+                </div>
+            </div>
+
+            <button type="submit" class="glass-btn" style="width: 100%; padding: 13px; font-size: 1.05rem;">
+                ⬆️ Procesar Importación
+            </button>
+        </form>
+    </div>
+
+    {% if resultado or resultado_zip %}
+    <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 20px;">
+
+        {% if resultado %}
+        <div class="glass-card">
+            <h3 style="margin-bottom: 16px;">📊 Resultado Excel</h3>
+            <div style="display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;">
+                <div class="glass-card" style="flex:1; text-align:center; padding: 14px; background: rgba(52,199,89,0.1);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--success);">{{ resultado.insertados }}</div>
+                    <div style="font-size: 0.82rem;">Insertados</div>
+                </div>
+                <div class="glass-card" style="flex:1; text-align:center; padding: 14px; background: rgba(255,204,0,0.1);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--warning);">{{ resultado.duplicados }}</div>
+                    <div style="font-size: 0.82rem;">Actualizados</div>
+                </div>
+                <div class="glass-card" style="flex:1; text-align:center; padding: 14px; background: rgba(255,59,48,0.1);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--danger);">{{ resultado.errores|length }}</div>
+                    <div style="font-size: 0.82rem;">Errores</div>
+                </div>
+            </div>
+            {% if resultado.hojas %}
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+                Hojas procesadas: {{ resultado.hojas|join(', ') }}
+            </p>
+            {% endif %}
+            {% if resultado.errores %}
+            <h4 style="margin-bottom: 8px; color: var(--danger);">Detalle de Errores:</h4>
+            <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 12px; max-height: 250px; overflow-y: auto;">
+                <ul style="font-size: 0.82rem; padding-left: 18px; color: var(--danger);">
+                    {% for err in resultado.errores %}
+                    <li style="margin-bottom: 4px;">{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if resultado_zip %}
+        <div class="glass-card">
+            <h3 style="margin-bottom: 16px;">🗜️ Resultado ZIP de PDFs</h3>
+            <div style="display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;">
+                <div class="glass-card" style="flex:1; text-align:center; padding: 14px; background: rgba(52,199,89,0.1);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--success);">{{ resultado_zip.asignados }}</div>
+                    <div style="font-size: 0.82rem;">PDFs asignados</div>
+                </div>
+                <div class="glass-card" style="flex:1; text-align:center; padding: 14px; background: rgba(255,59,48,0.1);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--danger);">{{ resultado_zip.no_asignados }}</div>
+                    <div style="font-size: 0.82rem;">No asignados</div>
+                </div>
+            </div>
+
+            {% if resultado_zip.detalle %}
+            <h4 style="margin-bottom: 8px;">Detalle por archivo:</h4>
+            <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 12px; max-height: 300px; overflow-y: auto;">
+                <table style="width:100%; font-size: 0.82rem; border-collapse: collapse;">
+                    <thead>
+                        <tr style="color: var(--text-muted); border-bottom: 1px solid rgba(0,0,0,0.08);">
+                            <th style="text-align:left; padding: 4px 8px;">Archivo</th>
+                            <th style="text-align:left; padding: 4px 8px;">Alumno</th>
+                            <th style="text-align:left; padding: 4px 8px;">Documento</th>
+                            <th style="text-align:center; padding: 4px 8px;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in resultado_zip.detalle %}
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+                            <td style="padding: 5px 8px; color: var(--text-muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ d.archivo }}">{{ d.archivo }}</td>
+                            <td style="padding: 5px 8px;">{{ d.alumno or '—' }}</td>
+                            <td style="padding: 5px 8px;">{{ d.tipo_doc or '—' }}</td>
+                            <td style="padding: 5px 8px; text-align:center;">
+                                {% if d.ok %}
+                                <span style="color: var(--success);">✓</span>
+                                {% else %}
+                                <span style="color: var(--danger);" title="{{ d.error }}">✗</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if resultado_zip.errores %}
+            <h4 style="margin-top: 14px; margin-bottom: 8px; color: var(--danger);">Errores:</h4>
+            <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 12px; max-height: 180px; overflow-y: auto;">
+                <ul style="font-size: 0.82rem; padding-left: 18px; color: var(--danger);">
+                    {% for err in resultado_zip.errores %}
+                    <li style="margin-bottom: 4px;">{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+const dz  = document.getElementById('dropZone');
+const fi  = document.getElementById('fileInput');
+const fn  = document.getElementById('fileName');
+fi.addEventListener('change', () => { fn.textContent = fi.files[0]?.name || ''; });
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--accent)'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
+dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.style.borderColor = '';
+    const f = e.dataTransfer.files[0];
+    if (f && (f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))) {
+        const dt = new DataTransfer(); dt.items.add(f); fi.files = dt.files;
+        fn.textContent = f.name;
+    }
+});
+
+const dz2 = document.getElementById('dropZoneZip');
+const fi2 = document.getElementById('fileInputZip');
+const fn2 = document.getElementById('fileNameZip');
+fi2.addEventListener('change', () => { fn2.textContent = fi2.files[0]?.name || ''; });
+dz2.addEventListener('dragover', e => { e.preventDefault(); dz2.style.borderColor = 'var(--accent)'; });
+dz2.addEventListener('dragleave', () => { dz2.style.borderColor = ''; });
+dz2.addEventListener('drop', e => {
+    e.preventDefault(); dz2.style.borderColor = '';
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.toLowerCase().endsWith('.zip')) {
+        const dt = new DataTransfer(); dt.items.add(f); fi2.files = dt.files;
+        fn2.textContent = f.name;
+    }
+});
+</script>
+{% endblock %}

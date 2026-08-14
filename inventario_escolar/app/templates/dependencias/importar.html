@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Importar Dependencias{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+    <div class="glass-card" style="flex: 1; min-width: 300px; max-width: 500px;">
+        <div style="margin-bottom: 15px;">
+            <a href="{{ url_for('dependencias.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al catálogo</a>
+        </div>
+        <h2 style="margin-bottom: 20px;">Importación Masiva de Dependencias</h2>
+
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem; line-height: 1.5;">
+            Sube un archivo Excel (.xlsx) con los datos de las dependencias o lugares para prácticas y servicio social.
+        </p>
+
+        <div class="glass-card" style="background: rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px;">
+            <h4 style="margin-bottom: 10px;">Formato Requerido (encabezados)</h4>
+            <ul style="font-size: 0.85rem; padding-left: 20px; color: var(--text-muted); margin-bottom: 10px;">
+                <li><code>nombre</code> (obligatorio)</li>
+                <li><code>tipo</code> (Practicas / Servicio / Ambos)</li>
+                <li><code>sector</code> (Municipal / Estatal / Salud)</li>
+                <li><code>domicilio</code></li>
+                <li><code>contacto</code></li>
+                <li><code>telefono</code></li>
+                <li><code>correo</code></li>
+            </ul>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div id="dropZone" class="drop-zone">
+                <div style="font-size: 3rem; margin-bottom: 15px;">🏢</div>
+                <h3 style="margin-bottom: 10px;">Arrastra tu archivo aquí</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">o haz clic para seleccionar</p>
+                <div id="fileName" style="font-weight: 600; color: var(--accent); margin-bottom: 10px;"></div>
+                <input type="file" name="archivo_excel" id="fileInput" accept=".xlsx, .xls" style="display: none;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="document.getElementById('fileInput').click()">Explorar...</button>
+            </div>
+            <button type="submit" class="glass-btn" style="width: 100%; margin-top: 20px; padding: 12px; font-size: 1.1rem;">Importar Datos</button>
+        </form>
+    </div>
+
+    {% if resultado %}
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h2 style="margin-bottom: 20px;">Resumen de Importación</h2>
+        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(52, 199, 89, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--success);">{{ resultado.insertados }}</div>
+                <div style="font-size: 0.85rem;">Insertados</div>
+            </div>
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(255, 204, 0, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--warning);">{{ resultado.duplicados }}</div>
+                <div style="font-size: 0.85rem;">Duplicados</div>
+            </div>
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(255, 59, 48, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--danger);">{{ resultado.errores|length }}</div>
+                <div style="font-size: 0.85rem;">Errores</div>
+            </div>
+        </div>
+        {% if resultado.errores %}
+        <h4 style="margin-bottom: 10px; color: var(--danger);">Detalle de Errores:</h4>
+        <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;">
+            <ul style="font-size: 0.85rem; padding-left: 20px; color: var(--danger);">
+                {% for err in resultado.errores %}
+                <li style="margin-bottom: 5px;">{{ err }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

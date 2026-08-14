@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGIDE - {% block title %}Inicio{% endblock %}</title>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% include 'components/_flash_messages.html' %}
+    {% include 'components/_modal_confirm.html' %}
+
+    <div id="sidebarOverlay" class="glass-sidebar-overlay"></div>
+
+    <aside id="sidebar" class="glass-sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-layer-group"></i> SGIDE</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('dashboard.index') }}" class="sidebar-link"><i class="fa-solid fa-chart-pie"></i> Dashboard</a></li>
+
+            {% if current_user.role.nombre == 'Super Admin' %}
+            <li><a href="{{ url_for('admin.usuarios') }}" class="sidebar-link"><i class="fa-solid fa-users"></i> Usuarios</a></li>
+            <li><a href="{{ url_for('admin.carreras') }}" class="sidebar-link"><i class="fa-solid fa-graduation-cap"></i> Carreras</a></li>
+            <li><a href="{{ url_for('admin.alumnos') }}" class="sidebar-link"><i class="fa-solid fa-user-graduate"></i> Alumnos</a></li>
+            <li><a href="{{ url_for('admin.importar') }}" class="sidebar-link"><i class="fa-solid fa-file-import"></i> Importar Excel</a></li>
+            {% endif %}
+
+            {% if current_user.role.nombre in ['Super Admin', 'Practicas'] %}
+            <li><a href="{{ url_for('practicas.lista') }}" class="sidebar-link"><i class="fa-solid fa-briefcase"></i> Prácticas</a></li>
+            {% endif %}
+
+            {% if current_user.role.nombre in ['Super Admin', 'Servicio'] %}
+            <li><a href="{{ url_for('servicio.lista') }}" class="sidebar-link"><i class="fa-solid fa-handshake-angle"></i> Servicio Social</a></li>
+            {% endif %}
+
+            {% if current_user.role.nombre in ['Super Admin', 'Vinculacion'] %}
+            <li><a href="{{ url_for('vinculacion.lista') }}" class="sidebar-link"><i class="fa-solid fa-link"></i> Vinculación</a></li>
+            {% endif %}
+
+            {% if current_user.role.nombre in ['Super Admin', 'Practicas', 'Servicio'] %}
+            <li><a href="{{ url_for('dependencias.lista') }}" class="sidebar-link"><i class="fa-solid fa-building"></i> Dependencias / Lugares</a></li>
+            {% endif %}
+
+            {% if current_user.role.nombre == 'Super Admin' %}
+            <li><a href="{{ url_for('plantillas.lista') }}" class="sidebar-link"><i class="fa-solid fa-file-word"></i> Plantillas Word</a></li>
+            {% endif %}
+
+            <li style="margin-top: auto;">
+                <a href="{{ url_for('auth.logout') }}" class="sidebar-link text-danger">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <nav class="glass-navbar">
+        <div class="nav-left">
+            <button id="sidebarToggle" class="glass-btn glass-btn-outline glass-btn-small">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+        <div class="nav-right">
+            <span class="badge badge-info">{{ current_user.role.nombre }}</span>
+            <span class="user-name">{{ current_user.nombre_completo or current_user.username }}</span>
+            <button id="themeToggle" class="glass-btn glass-btn-outline glass-btn-small" title="Cambiar Tema">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

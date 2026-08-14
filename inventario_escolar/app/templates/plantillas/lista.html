@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Plantillas{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Gestión de Plantillas Word (Machotes)</h2>
+</div>
+
+<p style="color: var(--text-muted); margin-bottom: 24px; max-width: 700px; line-height: 1.5;">
+    Sube los documentos Word (machotes) que se usan para generar las constancias de cada módulo.
+    Utiliza marcadores como <code>{{ "{{" }} nombre {{ "}}" }}</code>, <code>{{ "{{" }} matricula {{ "}}" }}</code>,
+    <code>{{ "{{" }} carrera {{ "}}" }}</code>, <code>{{ "{{" }} generacion {{ "}}" }}</code>,
+    <code>{{ "{{" }} estatus {{ "}}" }}</code>, <code>{{ "{{" }} sector {{ "}}" }}</code>,
+    <code>{{ "{{" }} dependencia {{ "}}" }}</code>, <code>{{ "{{" }} clave_expediente {{ "}}" }}</code>, etc.
+</p>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Módulo</th>
+                <th>Archivo</th>
+                <th>Estado</th>
+                <th>Subir / Reemplazar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in plantillas %}
+            <tr>
+                <td style="font-weight: 500;">{{ p.label }}</td>
+                <td><code>{{ p.filename }}</code></td>
+                <td>
+                    {% if p.exists %}
+                    <span class="badge badge-Entregado">Instalada ({{ (p.size / 1024)|round(1) }} KB)</span>
+                    {% else %}
+                    <span class="badge badge-Pendiente">No instalada</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="POST" action="{{ url_for('plantillas.subir', key=p.key) }}" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" name="plantilla" accept=".docx" class="glass-input" style="width: auto; flex: 1;" required>
+                        <button type="submit" class="glass-btn glass-btn-small">Subir</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

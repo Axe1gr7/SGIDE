@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Alumnos{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Gestión de Alumnos</h2>
+    <a href="{{ url_for('admin.crear_alumno') }}" class="glass-btn">➕ Nuevo Alumno</a>
+</div>
+
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula...">
+        </div>
+        <div style="flex: 1; min-width: 200px;">
+            <label class="form-label">Carrera</label>
+            <select name="carrera_filter" class="glass-select">
+                <option value="">Todas las carreras</option>
+                {% for c in carreras %}
+                <option value="{{ c.id }}" {% if carrera_filter|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="glass-btn">Filtrar</button>
+            <a href="{{ url_for('admin.alumnos') }}" class="glass-btn glass-btn-outline">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Matrícula</th>
+                <th>Nombre</th>
+                <th>Generación</th>
+                <th>Carrera</th>
+                <th>Estatus</th>
+                <th>Expediente Base</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+{% for a in pagination.items %}
+            <tr>
+                <td>{{ a.matricula or '<span class="badge badge-Pendiente">Pendiente</span>'|safe }}</td>
+                <td>{{ a.nombre or '<span class="badge badge-Pendiente">Pendiente</span>'|safe }}</td>
+                <td>{{ a.generacion_completa }}</td>
+                <td>{{ a.carrera.nombre if a.carrera else '<span class="badge badge-Pendiente">Pendiente</span>'|safe }}</td>
+                <td>
+                    <span class="badge badge-{{ a.estatus }}">{{ a.estatus }}</span>
+                </td>
+                <td><span class="badge badge-info">{{ a.expediente_base }}</span></td>
+                <td>
+                    <a href="{{ url_for('admin.editar_alumno', id=a.id) }}" class="glass-btn glass-btn-outline glass-btn-small">Editar</a>
+                    <button class="glass-btn glass-btn-danger glass-btn-small" data-delete-url="{{ url_for('admin.eliminar_alumno', id=a.id) }}" data-delete-name="al alumno {{ a.nombre or 'sin nombre' }}">Eliminar</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 20px;">No se encontraron alumnos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/_pagination.html' %}
+{% endblock %}

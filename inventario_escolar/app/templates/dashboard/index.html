@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 5px;">Panel de Control</h2>
+    <p style="color: var(--text-muted);">Resumen general del inventario documental</p>
+</div>
+
+{% include 'components/_stats_cards.html' %}
+
+<div class="charts-grid">
+    <div class="glass-card">
+        <div class="chart-container">
+            <canvas id="chartCarreras"></canvas>
+        </div>
+    </div>
+    
+    {% if is_admin or current_user.role.nombre == 'Practicas' %}
+    <div class="glass-card">
+        <div class="chart-container">
+            <canvas id="chart-practicas"></canvas>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if is_admin or current_user.role.nombre == 'Servicio' %}
+    <div class="glass-card">
+        <div class="chart-container">
+            <canvas id="chart-servicio"></canvas>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if is_admin or current_user.role.nombre == 'Vinculacion' %}
+    <div class="glass-card">
+        <div class="chart-container">
+            <canvas id="chart-vinculacion"></canvas>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% set icons = [
+  'fa-folder','fa-folder-open','fa-file-alt','fa-briefcase','fa-book',
+  'fa-university','fa-link','fa-building','fa-handshake','fa-star',
+  'fa-flag','fa-bookmark','fa-tag','fa-layer-group','fa-boxes-stacked',
+  'fa-chart-bar','fa-users','fa-graduation-cap','fa-file-contract',
+  'fa-clipboard','fa-inbox','fa-archive','fa-sitemap','fa-network-wired'
+] %}
+{% for ico in icons %}
+<button type="button" class="icon-opt" data-icon="{{ ico }}" title="{{ ico }}">
+  <i class="fa-solid {{ ico }}"></i>
+</button>
+{% endfor %}

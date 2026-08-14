@@ -1,0 +1,652 @@
+{% extends 'base.html' %}
+{% block title %}Vinculación — Módulos{% endblock %}
+
+{% block head %}
+<style>
+/* ══════════════════════════════════════════════════════
+   LIQUID GLASS — Variables adicionales para Vinculación
+   ══════════════════════════════════════════════════════ */
+:root {
+  --vin-blur: blur(20px) saturate(180%);
+  --vin-glass: rgba(255,255,255,0.18);
+  --vin-border: rgba(255,255,255,0.35);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --vin-radius: 20px;
+}
+[data-theme="dark"] {
+  --vin-glass: rgba(15,23,42,0.55);
+  --vin-border: rgba(255,255,255,0.12);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+/* ── Page Header ──────────────────────────────────────── */
+.vin-hero {
+  position: relative;
+  padding: 40px 0 32px;
+  margin-bottom: 36px;
+  overflow: hidden;
+}
+.vin-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(99,102,241,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(168,85,247,0.12) 0%, transparent 70%);
+  pointer-events: none;
+  animation: heroShimmer 8s ease-in-out infinite alternate;
+}
+@keyframes heroShimmer {
+  from { transform: translateX(0) scale(1); }
+  to   { transform: translateX(3%) scale(1.04); }
+}
+.vin-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.vin-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.vin-hero-icon {
+  width: 56px; height: 56px;
+  background: var(--accent-gradient);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+  flex-shrink: 0;
+}
+.vin-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.vin-hero p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+/* ── Stats Strip ──────────────────────────────────────── */
+.vin-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+.vin-stat-pill {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 50px;
+  padding: 10px 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: var(--vin-shadow);
+}
+.vin-stat-pill i { color: var(--accent); font-size: 1rem; }
+.vin-stat-pill span { color: var(--text-muted); font-weight: 400; margin-left: 2px; }
+
+/* ── Cards Grid ───────────────────────────────────────── */
+.vin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.vin-card {
+  position: relative;
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: var(--vin-radius);
+  box-shadow: var(--vin-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1),
+              box-shadow 0.35s cubic-bezier(.22,1,.36,1);
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+.vin-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--card-accent, var(--accent-gradient));
+  border-radius: var(--vin-radius) var(--vin-radius) 0 0;
+  opacity: 0.9;
+}
+.vin-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.vin-card:hover {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: var(--vin-hover-shadow);
+}
+.vin-card:hover::after { opacity: 1; }
+
+.vin-card-header {
+  padding: 28px 28px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.vin-card-icon {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  background: var(--card-icon-bg, var(--accent-gradient));
+}
+.vin-card-meta { flex: 1; min-width: 0; }
+.vin-card-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.vin-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vin-card-footer {
+  padding: 14px 28px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--vin-border);
+  margin-top: 8px;
+}
+.vin-card-count {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.85rem; color: var(--text-muted); font-weight: 500;
+}
+.vin-card-count strong { color: var(--text-primary); font-size: 1rem; }
+.vin-card-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(79,70,229,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; color: var(--accent);
+  transition: background 0.2s, transform 0.2s;
+}
+.vin-card:hover .vin-card-arrow {
+  background: var(--accent-gradient);
+  color: #fff;
+  transform: translateX(2px);
+}
+.vin-card-actions {
+  position: absolute;
+  top: 14px; right: 14px;
+  display: flex; gap: 6px;
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 10;
+}
+.vin-card:hover .vin-card-actions { opacity: 1; }
+.vin-action-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--vin-border);
+  background: var(--vin-glass);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-muted);
+}
+.vin-action-btn:hover { background: var(--bg-glass); color: var(--accent); }
+.vin-action-btn.del:hover { color: var(--danger); }
+
+/* ── Empty State ──────────────────────────────────────── */
+.vin-empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: 80px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.vin-empty-icon {
+  font-size: 4rem;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.5;
+}
+.vin-empty h3 { font-size: 1.2rem; color: var(--text-muted); font-weight: 500; }
+
+/* ── Add-Card button ──────────────────────────────────── */
+.vin-add-card {
+  background: transparent;
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--vin-radius);
+  min-height: 200px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.vin-add-card i { font-size: 2rem; opacity: 0.5; transition: 0.3s; }
+.vin-add-card:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,70,229,0.04);
+}
+.vin-add-card:hover i { opacity: 1; transform: scale(1.15); }
+
+/* ── Modal (Liquid Glass) ─────────────────────────────── */
+.vin-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: 0.3s;
+}
+.vin-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.vin-modal {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 24px;
+  box-shadow: var(--vin-hover-shadow);
+  width: 90%; max-width: 520px;
+  padding: 36px;
+  transform: translateY(30px) scale(0.96);
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1);
+}
+.vin-modal-overlay.active .vin-modal {
+  transform: translateY(0) scale(1);
+}
+.vin-modal h3 {
+  font-size: 1.25rem; font-weight: 700; margin-bottom: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+.vin-modal h3 i { color: var(--accent); }
+.vin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.vin-form-group { margin-bottom: 18px; }
+.vin-form-group label {
+  display: block; margin-bottom: 6px; font-weight: 600;
+  font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.vin-modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+
+/* Icon grid picker */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px; margin-top: 8px;
+}
+.icon-opt {
+  width: 36px; height: 36px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1rem; color: var(--text-muted);
+  transition: 0.2s;
+  background: transparent;
+}
+.icon-opt:hover, .icon-opt.selected {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.3);
+}
+.icon-hidden { display: none; }
+
+/* color swatch */
+.color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.color-swatch {
+  width: 28px; height: 28px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: 0.2s; position: relative;
+}
+.color-swatch.selected { border-color: var(--text-primary); transform: scale(1.2); }
+
+/* Badge de conteo */
+.count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(79,70,229,0.12);
+  color: var(--accent);
+  border-radius: 50px;
+  padding: 2px 10px;
+  font-size: 0.78rem; font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .vin-grid { grid-template-columns: 1fr; }
+  .vin-form-row { grid-template-columns: 1fr; }
+  .icon-grid { grid-template-columns: repeat(6, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<div class="vin-hero">
+  <div class="vin-hero-content">
+    <div class="vin-hero-title">
+      <div class="vin-hero-icon"><i class="fa-solid fa-link"></i></div>
+      <div>
+        <h1>Vinculación</h1>
+        <p>Administración de módulos y sub-módulos documentales</p>
+      </div>
+    </div>
+    <button class="glass-btn" id="btnNuevoModulo">
+      <i class="fa-solid fa-plus"></i> Nuevo Módulo
+    </button>
+  </div>
+</div>
+
+<!-- ── Stats ─────────────────────────────────────────────────────────────── -->
+<div class="vin-stats">
+  <div class="vin-stat-pill">
+    <i class="fa-solid fa-folder"></i>
+    <strong>{{ modulos|length }}</strong>
+    <span>Módulo{{ 's' if modulos|length != 1 else '' }}</span>
+  </div>
+  <div class="vin-stat-pill">
+    <i class="fa-solid fa-folder-open"></i>
+    <strong>
+      {% set ns = namespace(total=0) %}
+      {% for m in modulos %}{% set ns.total = ns.total + m.submodulos.filter_by(is_deleted=False).count() %}{% endfor %}
+      {{ ns.total }}
+    </strong>
+    <span>Sub-módulos totales</span>
+  </div>
+</div>
+
+<!-- ── Grid de módulos ────────────────────────────────────────────────────── -->
+<div class="vin-grid">
+  {% for m in modulos %}
+  {% set sub_count = m.submodulos.filter_by(is_deleted=False).count() %}
+  <div class="vin-card"
+       style="--card-accent: linear-gradient(90deg, {{ m.color }}, {{ m.color }}aa);
+              --card-icon-bg: linear-gradient(135deg, {{ m.color }}, {{ m.color }}99);"
+       onclick="goToModule({{ m.id }})">
+
+    <!-- Acción editar/eliminar (hover) -->
+    <div class="vin-card-actions">
+      <button class="vin-action-btn" title="Editar"
+              onclick="event.stopPropagation(); openEditModal({{ m.id }}, '{{ m.nombre|e }}', '{{ m.descripcion or ''|e }}', '{{ m.icono }}', '{{ m.color }}')">
+        <i class="fa-solid fa-pencil"></i>
+      </button>
+      <button class="vin-action-btn del" title="Eliminar"
+              onclick="event.stopPropagation(); confirmDelete({{ m.id }}, '{{ m.nombre|e }}')">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+
+    <div class="vin-card-header">
+      <div class="vin-card-icon">
+        <i class="fa-solid {{ m.icono }}"></i>
+      </div>
+      <div class="vin-card-meta">
+        <div class="vin-card-name">{{ m.nombre }}</div>
+        <div class="vin-card-desc">{{ m.descripcion or 'Sin descripción' }}</div>
+      </div>
+    </div>
+
+    <div class="vin-card-footer">
+      <div class="vin-card-count">
+        <i class="fa-solid fa-folder-open" style="color:{{ m.color }}"></i>
+        <strong>{{ sub_count }}</strong>
+        <span>sub-módulo{{ 's' if sub_count != 1 else '' }}</span>
+      </div>
+      <div class="vin-card-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+  </div>
+  {% else %}
+  <div class="vin-empty glass-card">
+    <div class="vin-empty-icon"><i class="fa-solid fa-folder-plus"></i></div>
+    <h3>Aún no hay módulos registrados</h3>
+    <button class="glass-btn" onclick="document.getElementById('btnNuevoModulo').click()">
+      <i class="fa-solid fa-plus"></i> Crear el primer módulo
+    </button>
+  </div>
+  {% endfor %}
+
+  <!-- Add card -->
+  {% if modulos %}
+  <div class="vin-add-card" onclick="document.getElementById('btnNuevoModulo').click()">
+    <i class="fa-solid fa-plus"></i>
+    <span>Agregar módulo</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══════════════════════ MODAL: NUEVO MÓDULO ══════════════════════════ -->
+<div class="vin-modal-overlay" id="modalNuevo">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-folder-plus"></i> Nuevo Módulo</h3>
+    <form method="POST" action="{{ url_for('vinculacion.crear_modulo') }}">
+      <div class="form-group vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" class="glass-input" placeholder="Ej. Convenios 2025" required>
+      </div>
+      <div class="form-group vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" class="glass-textarea" rows="2"
+                  placeholder="Breve descripción del módulo…"></textarea>
+      </div>
+
+      <div class="vin-form-row">
+        <div class="vin-form-group">
+          <label>Ícono</label>
+          <input type="hidden" name="icono" id="iconoNuevo" value="fa-folder">
+          <div class="icon-grid" id="iconGridNuevo">{% include 'vinculacion/_icon_opts.html' %}</div>
+        </div>
+        <div class="vin-form-group">
+          <label>Color</label>
+          <input type="hidden" name="color" id="colorNuevo" value="#4f46e5">
+          <div class="color-swatches" id="colorSwatchesNuevo">{% include 'vinculacion/_color_swatches.html' %}</div>
+        </div>
+      </div>
+
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalNuevo')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════════════ MODAL: EDITAR MÓDULO ═════════════════════════ -->
+<div class="vin-modal-overlay" id="modalEditar">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-pencil"></i> Editar Módulo</h3>
+    <form method="POST" id="formEditar">
+      <div class="form-group vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" id="editNombre" class="glass-input" required>
+      </div>
+      <div class="form-group vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" id="editDesc" class="glass-textarea" rows="2"></textarea>
+      </div>
+
+      <div class="vin-form-row">
+        <div class="vin-form-group">
+          <label>Ícono</label>
+          <input type="hidden" name="icono" id="iconoEditar" value="fa-folder">
+          <div class="icon-grid" id="iconGridEditar">{% include 'vinculacion/_icon_opts.html' %}</div>
+        </div>
+        <div class="vin-form-group">
+          <label>Color</label>
+          <input type="hidden" name="color" id="colorEditar" value="#4f46e5">
+          <div class="color-swatches" id="colorSwatchesEditar">{% include 'vinculacion/_color_swatches.html' %}</div>
+        </div>
+      </div>
+
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEditar')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════════════ MODAL: CONFIRMAR ELIMINAR ════════════════════ -->
+<div class="vin-modal-overlay" id="modalEliminar">
+  <div class="vin-modal" style="max-width:400px;text-align:center;">
+    <div style="font-size:3rem;margin-bottom:16px;">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i>
+    </div>
+    <h3 style="justify-content:center;">¿Eliminar módulo?</h3>
+    <p style="color:var(--text-muted);margin-bottom:24px;font-size:0.95rem;" id="deleteMsg"></p>
+    <form method="POST" id="formEliminar">
+      <div class="vin-modal-footer" style="justify-content:center;">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEliminar')">Cancelar</button>
+        <button type="submit" class="glass-btn glass-btn-danger"><i class="fa-solid fa-trash"></i> Eliminar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ICONS = ['fa-folder','fa-folder-open','fa-file-alt','fa-briefcase','fa-book','fa-university','fa-link','fa-building','fa-handshake','fa-star','fa-flag','fa-bookmark','fa-tag','fa-layer-group','fa-boxes-stacked','fa-chart-bar','fa-users','fa-graduation-cap'];
+const COLORS = ['#4f46e5','#7c3aed','#db2777','#dc2626','#ea580c','#d97706','#16a34a','#0891b2','#0284c7','#64748b'];
+
+function goToModule(id) {
+  window.location.href = `/vinculacion/${id}`;
+}
+
+/* ── Modal helpers ── */
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+/* Close on overlay click */
+document.querySelectorAll('.vin-modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+
+/* New module button */
+document.getElementById('btnNuevoModulo').addEventListener('click', () => openModal('modalNuevo'));
+
+/* Icon picker factory */
+function initIconGrid(gridId, hiddenId, initialIcon) {
+  const grid = document.getElementById(gridId);
+  const hidden = document.getElementById(hiddenId);
+  const opts = grid.querySelectorAll('.icon-opt');
+  opts.forEach(btn => {
+    const ico = btn.dataset.icon;
+    if (ico === initialIcon) btn.classList.add('selected');
+    btn.addEventListener('click', () => {
+      opts.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      hidden.value = ico;
+    });
+  });
+}
+
+/* Color swatch factory */
+function initColorSwatches(containerId, hiddenId, initialColor) {
+  const container = document.getElementById(containerId);
+  const hidden = document.getElementById(hiddenId);
+  const swatches = container.querySelectorAll('.color-swatch');
+  swatches.forEach(sw => {
+    const c = sw.dataset.color;
+    sw.style.background = c;
+    if (c === initialColor) sw.classList.add('selected');
+    sw.addEventListener('click', () => {
+      swatches.forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+      hidden.value = c;
+    });
+  });
+}
+
+/* Init grids on page load */
+initIconGrid('iconGridNuevo', 'iconoNuevo', 'fa-folder');
+initColorSwatches('colorSwatchesNuevo', 'colorNuevo', '#4f46e5');
+initIconGrid('iconGridEditar', 'iconoEditar', 'fa-folder');
+initColorSwatches('colorSwatchesEditar', 'colorEditar', '#4f46e5');
+
+/* Open edit modal */
+function openEditModal(id, nombre, desc, icono, color) {
+  document.getElementById('editNombre').value = nombre;
+  document.getElementById('editDesc').value = desc;
+  document.getElementById('formEditar').action = `/vinculacion/${id}/editar`;
+
+  // Reset icon grid
+  const gridOpts = document.querySelectorAll('#iconGridEditar .icon-opt');
+  gridOpts.forEach(b => {
+    b.classList.toggle('selected', b.dataset.icon === icono);
+  });
+  document.getElementById('iconoEditar').value = icono;
+
+  // Reset swatches
+  const swatches = document.querySelectorAll('#colorSwatchesEditar .color-swatch');
+  swatches.forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === color);
+  });
+  document.getElementById('colorEditar').value = color;
+
+  openModal('modalEditar');
+}
+
+/* Open delete modal */
+function confirmDelete(id, nombre) {
+  document.getElementById('deleteMsg').textContent = `El módulo "${nombre}" y todos sus sub-módulos serán eliminados.`;
+  document.getElementById('formEliminar').action = `/vinculacion/${id}/eliminar`;
+  openModal('modalEliminar');
+}
+
+/* Escape key closes modals */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.vin-modal-overlay.active').forEach(o => closeModal(o.id));
+  }
+});
+</script>
+{% endblock %}

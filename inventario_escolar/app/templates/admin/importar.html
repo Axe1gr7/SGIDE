@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Importar Alumnos{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+    
+    <div class="glass-card" style="flex: 1; min-width: 300px; max-width: 500px;">
+        <h2 style="margin-bottom: 20px;">Importación Masiva de Excel</h2>
+        
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem; line-height: 1.5;">
+            Sube un archivo Excel (.xlsx) con los datos de los alumnos. El sistema registrará a los alumnos y creará automáticamente sus 3 expedientes correspondientes.
+        </p>
+        
+        <div class="glass-card" style="background: rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px;">
+            <h4 style="margin-bottom: 10px;">Formatos compatibles</h4>
+            <p style="font-size: 0.85rem; margin-bottom: 10px;">
+                Se aceptan archivos Excel institucionales con <strong>varias hojas</strong> (Logística, Biotecnología, PGA, etc.)
+                o un archivo simple con una sola hoja. Encabezados reconocidos automáticamente:
+            </p>
+            <ul style="font-size: 0.85rem; padding-left: 20px; color: var(--text-muted); margin-bottom: 10px;">
+                <li><code>NOMBRE DEL ALUMNO</code> o <code>nombre</code></li>
+                <li><code>NUMERO DE CONTROL</code> o <code>matricula</code></li>
+                <li><code>ESPECIALIDAD</code> o <code>carrera</code> (también se infiere del nombre de la hoja)</li>
+                <li><code>INSTITUCIÓN PRESTATARIA</code> (dependencia de servicio social)</li>
+                <li><code>SECTOR</code>, <code>AÑO 1</code>, <code>AÑO 2</code> (opcionales)</li>
+            </ul>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+                Si falta el año de generación, se toma de los primeros 2 dígitos del número de control (ej: 24… → 2024).
+            </p>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data">
+            <div style="margin-bottom: 25px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 10px; display: block; color: var(--text-primary);">Destino de la Inyección Masiva</label>
+                <div style="display: flex; gap: 15px;">
+                    <label style="flex: 1; cursor: pointer;">
+                        <input type="radio" name="tipo_modulo" value="s" {% if tipo_modulo == 's' %}checked{% endif %} style="display: none;" onchange="updateSelection('s')">
+                        <div id="btn-servicio" class="glass-card" style="text-align: center; padding: 15px; border: 2px solid var(--accent); transition: all 0.3s ease; background: var(--bg-glass);">
+                            <span style="font-size: 1.8rem; display: block; margin-bottom: 5px;">🤝</span>
+                            <strong style="font-size: 0.95rem; display: block;">Servicio Social</strong>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Asigna sector, dependencia e inicializa documentos de SS</span>
+                        </div>
+                    </label>
+                    <label style="flex: 1; cursor: pointer;">
+                        <input type="radio" name="tipo_modulo" value="p" {% if tipo_modulo == 'p' %}checked{% endif %} style="display: none;" onchange="updateSelection('p')">
+                        <div id="btn-practicas" class="glass-card" style="text-align: center; padding: 15px; border: 2px solid transparent; transition: all 0.3s ease; background: var(--bg-glass); opacity: 0.7;">
+                            <span style="font-size: 1.8rem; display: block; margin-bottom: 5px;">💼</span>
+                            <strong style="font-size: 0.95rem; display: block;">Prácticas Profesionales</strong>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Asigna empresa/lugar e inicializa documentos de Prácticas</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <script>
+                function updateSelection(tipo) {
+                    const btnS = document.getElementById('btn-servicio');
+                    const btnP = document.getElementById('btn-practicas');
+                    if (tipo === 's') {
+                        btnS.style.borderColor = 'var(--accent)';
+                        btnS.style.opacity = '1';
+                        btnS.style.boxShadow = '0 0 10px rgba(79, 70, 229, 0.15)';
+                        btnP.style.borderColor = 'transparent';
+                        btnP.style.opacity = '0.7';
+                        btnP.style.boxShadow = 'none';
+                    } else {
+                        btnP.style.borderColor = 'var(--accent)';
+                        btnP.style.opacity = '1';
+                        btnP.style.boxShadow = '0 0 10px rgba(79, 70, 229, 0.15)';
+                        btnS.style.borderColor = 'transparent';
+                        btnS.style.opacity = '0.7';
+                        btnS.style.boxShadow = 'none';
+                    }
+                }
+                // Initialize on load
+                window.addEventListener('DOMContentLoaded', () => {
+                    updateSelection('{{ tipo_modulo }}');
+                });
+            </script>
+
+            <div id="dropZone" class="drop-zone">
+                <div style="font-size: 3rem; margin-bottom: 15px;">📄</div>
+                <h3 style="margin-bottom: 10px;">Arrastra tu archivo aquí</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">o haz clic para seleccionar</p>
+                <div id="fileName" style="font-weight: 600; color: var(--accent); margin-bottom: 10px;"></div>
+                <input type="file" name="archivo_excel" id="fileInput" accept=".xlsx, .xls" style="display: none;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="document.getElementById('fileInput').click()">Explorar...</button>
+            </div>
+            
+            <button type="submit" class="glass-btn" style="width: 100%; margin-top: 20px; padding: 12px; font-size: 1.1rem;">Importar Datos</button>
+        </form>
+    </div>
+    
+    {% if resultado %}
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h2 style="margin-bottom: 20px;">Resumen de Importación</h2>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(52, 199, 89, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--success);">{{ resultado.insertados }}</div>
+                <div style="font-size: 0.85rem;">Insertados</div>
+            </div>
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(255, 204, 0, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--warning);">{{ resultado.duplicados }}</div>
+                <div style="font-size: 0.85rem;">Duplicados omitidos</div>
+            </div>
+            <div class="glass-card" style="flex:1; text-align:center; padding: 15px; background: rgba(255, 59, 48, 0.1);">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--danger);">{{ resultado.errores|length }}</div>
+                <div style="font-size: 0.85rem;">Errores</div>
+            </div>
+        </div>
+        
+        {% if resultado.hojas %}
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+            Hojas procesadas: {{ resultado.hojas|join(', ') }}
+        </p>
+        {% endif %}
+
+        {% if resultado.errores %}
+        <h4 style="margin-bottom: 10px; color: var(--danger);">Detalle de Errores:</h4>
+        <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;">
+            <ul style="font-size: 0.85rem; padding-left: 20px; color: var(--danger);">
+                {% for err in resultado.errores %}
+                <li style="margin-bottom: 5px;">{{ err }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}

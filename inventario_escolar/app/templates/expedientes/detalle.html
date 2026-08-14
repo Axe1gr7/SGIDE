@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Detalle - {{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <a href="{{ url_for(modulo_prefix ~ '.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista</a>
+        <h2 style="margin-top: 5px;">Expediente: {{ expediente.clave_expediente }}</h2>
+    </div>
+
+    <form action="{{ url_for(modulo_prefix ~ '.generar_word', id=expediente.id) }}" method="POST">
+        <button type="submit" class="glass-btn" style="background: var(--info);">📄 Generar Formato Word</button>
+    </form>
+</div>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+    <!-- Alumno Info Card -->
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Datos del Alumno</h3>
+
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 20px;">
+            <strong style="color: var(--text-muted);">Nombre:</strong>
+            <span>{{ alumno.nombre }}</span>
+
+            <strong style="color: var(--text-muted);">Matrícula:</strong>
+            <span>{{ alumno.matricula }}</span>
+
+            <strong style="color: var(--text-muted);">Carrera:</strong>
+            <span>{{ alumno.carrera.nombre }}</span>
+
+            <strong style="color: var(--text-muted);">Generación:</strong>
+            <span>{{ alumno.generacion_completa }}</span>
+
+            <strong style="color: var(--text-muted);">Estatus:</strong>
+            <span><span class="badge badge-{{ alumno.estatus }}">{{ alumno.estatus }}</span></span>
+
+            <strong style="color: var(--text-muted);">Expediente Base:</strong>
+            <span>{{ alumno.expediente_base }}</span>
+        </div>
+    </div>
+
+{% if es_practicas %}
+    <!-- Dependencia Card (Prácticas) -->
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Lugar / Empresa</h3>
+
+        <p style="color: var(--text-muted); margin-bottom: 15px;">
+            Lugar actual:
+            <strong style="color: var(--text-primary);">
+                {{ expediente.dependencia.nombre if expediente.dependencia else 'Sin asignar' }}
+            </strong>
+        </p>
+
+        <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_dependencia', id=expediente.id) }}">
+            <div class="form-group">
+                <label class="form-label">Lugar / Empresa (catálogo)</label>
+                <select name="dependencia_id" class="glass-select">
+                    <option value="">Sin asignar</option>
+                    {% for d in dependencias %}
+                    <option value="{{ d.id }}" {% if expediente.dependencia_id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="glass-btn">Asignar Lugar</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if es_servicio %}
+    <!-- Dependencia / Sector Card -->
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Dependencia / Sector</h3>
+
+        <p style="color: var(--text-muted); margin-bottom: 5px;">
+            Dependencia actual:
+            <strong style="color: var(--text-primary);">
+                {{ expediente.dependencia.nombre if expediente.dependencia else 'Sin asignar' }}
+            </strong>
+        </p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">
+            Sector actual: <strong style="color: var(--text-primary);">{{ expediente.sector or 'Sin asignar' }}</strong>
+        </p>
+
+        <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_dependencia', id=expediente.id) }}" style="margin-bottom: 15px;">
+            <div class="form-group">
+                <label class="form-label">Dependencia / Lugar (catálogo)</label>
+                <select name="dependencia_id" class="glass-select">
+                    <option value="">Sin asignar</option>
+                    {% for d in dependencias %}
+                    <option value="{{ d.id }}" {% if expediente.dependencia_id == d.id %}selected{% endif %}>{{ d.nombre }} ({{ d.sector or 'Sin sector' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="glass-btn">Asignar Dependencia</button>
+        </form>
+
+        <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_sector', id=expediente.id) }}">
+            <div class="form-group">
+                <label class="form-label">Sector (manual)</label>
+                <select name="sector" class="glass-select">
+                    <option value="">Seleccione...</option>
+                    {% for s in sectores %}
+                    <option value="{{ s }}" {% if expediente.sector == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="glass-btn glass-btn-outline">Guardar Sector</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Documentos Card -->
+    <div class="glass-card" style="flex: 2; min-width: 400px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <h3>Documentos Entregados</h3>
+            <a href="{{ url_for(modulo_prefix ~ '.crear_documento', id=expediente.id) }}" class="glass-btn glass-btn-outline glass-btn-small">➕ Agregar Doc</a>
+        </div>
+
+        {% if documentos %}
+        <div style="overflow-x: auto;">
+            <table class="glass-table">
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Estado</th>
+                        <th>Observaciones</th>
+                        <th>Archivo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documentos %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ doc.nombre_formato }}</td>
+                        <td>
+                            {% set badge_class = doc.estado|replace(' ', '') %}
+                            <span class="badge badge-{{ badge_class }}">{{ doc.estado }}</span>
+                        </td>
+                        <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ doc.observaciones or '-' }}</span></td>
+                        <td>
+                            {% if doc.ruta_archivo %}
+                            <a href="{{ url_for(modulo_prefix ~ '.descargar_archivo', id=expediente.id, doc_id=doc.id) }}" title="{{ doc.ruta_archivo }}">📎 Descargar</a>
+                            {% else %}
+                            <span style="color: var(--text-muted);">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 5px;">
+                                <a href="{{ url_for(modulo_prefix ~ '.editar_documento', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 4px 8px;">✎</a>
+                                <button class="glass-btn glass-btn-danger glass-btn-small" style="padding: 4px 8px;" data-delete-url="{{ url_for(modulo_prefix ~ '.eliminar_documento', id=expediente.id, doc_id=doc.id) }}" data-delete-name="este documento">✖</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+            No hay documentos registrados en este expediente.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}{{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Expedientes - {{ modulo_label }}</h2>
+    {% if modulo_prefix in ('servicio', 'practicas') %}
+    <a href="{{ url_for(modulo_prefix ~ '.importar') }}" class="glass-btn">📥 Importar Excel</a>
+    {% endif %}
+</div>
+
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Carrera</label>
+            <select name="carrera_filter" class="glass-select">
+                <option value="">Todas</option>
+                {% for c in carreras %}
+                <option value="{{ c.id }}" {% if carrera_filter|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Estado Doc.</label>
+            <select name="estado_filter" class="glass-select">
+                <option value="">Todos</option>
+                <option value="Pendiente" {% if estado_filter == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="Entregado" {% if estado_filter == 'Entregado' %}selected{% endif %}>Entregado</option>
+                <option value="Recibido" {% if estado_filter == 'Recibido' %}selected{% endif %}>Recibido</option>
+                <option value="No Realizado" {% if estado_filter == 'No Realizado' %}selected{% endif %}>No Realizado</option>
+            </select>
+        </div>
+        {% if es_servicio %}
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Sector</label>
+            <select name="sector_filter" class="glass-select">
+                <option value="">Todos</option>
+                {% for s in sectores %}
+                <option value="{{ s }}" {% if sector_filter == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div>
+            <button type="submit" class="glass-btn">Filtrar</button>
+            <a href="{{ url_for(modulo_prefix ~ '.lista') }}" class="glass-btn glass-btn-outline">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Clave Expediente</th>
+                <th>Alumno</th>
+                <th>Matrícula</th>
+                <th>Carrera</th>
+                <th>Generación</th>
+                <th>Estatus</th>
+                {% if es_servicio %}
+                <th>Sector</th>
+                {% endif %}
+                <th>Docs</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in pagination.items %}
+            <tr>
+                <td><span class="badge badge-info" style="font-size:0.9rem;">{{ e.clave_expediente }}</span></td>
+                <td>{{ e.alumno.nombre }}</td>
+                <td>{{ e.alumno.matricula }}</td>
+                <td>{{ e.alumno.carrera.nombre }}</td>
+                <td>{{ e.alumno.generacion_completa }}</td>
+                <td><span class="badge badge-{{ e.alumno.estatus }}">{{ e.alumno.estatus }}</span></td>
+                {% if es_servicio %}
+                <td>{{ e.sector or '-' }}</td>
+                {% endif %}
+                <td>
+                    {% set total_docs = e.documentos.filter_by(is_deleted=False).count() %}
+                    {% set entregados = e.documentos.filter_by(is_deleted=False, estado='Entregado').count() %}
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-weight:600;">{{ entregados }}/{{ total_docs }}</span>
+                        {% if total_docs > 0 and entregados == total_docs %}
+                        <span style="color:var(--success);">✅</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <a href="{{ url_for(modulo_prefix ~ '.detalle', id=e.id) }}" class="glass-btn glass-btn-small">Ver Detalle</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="{{ 8 if es_servicio else 7 }}" style="text-align: center; padding: 20px;">No se encontraron expedientes.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/_pagination.html' %}
+{% endblock %}

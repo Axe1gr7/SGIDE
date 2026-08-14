@@ -1,0 +1,13 @@
+<div id="deleteModal" class="glass-modal-overlay">
+    <div class="glass-modal">
+        <h3 style="color: var(--danger); margin-bottom: 15px;">⚠️ Confirmar Eliminación</h3>
+        <p style="margin-bottom: 10px;">¿Estás seguro de que deseas eliminar <strong id="deleteName"></strong>?</p>
+        <p class="text-muted" style="margin-bottom: 25px;">Esta acción ocultará el registro (soft delete), pero no se podrá recuperar desde la interfaz.</p>
+        <form id="deleteForm" method="POST">
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="glass-btn glass-btn-outline" data-modal-close>Cancelar</button>
+                <button type="submit" class="glass-btn glass-btn-danger">Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>

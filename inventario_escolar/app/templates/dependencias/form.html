@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}{% if dependencia %}Editar{% else %}Nueva{% endif %} Dependencia{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 700px; margin: 0 auto;">
+    <div style="margin-bottom: 20px;">
+        <a href="{{ url_for('dependencias.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al catálogo</a>
+    </div>
+
+    <h2>{% if dependencia %}Editar{% else %}Nueva{% endif %} Dependencia</h2>
+    <hr style="border:0; border-top:1px solid var(--glass-border); margin: 20px 0;">
+
+    <form method="POST">
+        <div class="form-group">
+            <label class="form-label">Nombre de la Dependencia / Lugar</label>
+            <input type="text" name="nombre" class="glass-input" value="{{ dependencia.nombre if dependencia else '' }}" required placeholder="Ej: Hospital General, Empresa XYZ, Delegación...">
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Tipo</label>
+                <select name="tipo" class="glass-select" required>
+                    {% for t in tipos %}
+                    <option value="{{ t }}" {% if dependencia and dependencia.tipo == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Sector</label>
+                <select name="sector" class="glass-select">
+                    <option value="">Seleccione...</option>
+                    {% for s in sectores %}
+                    <option value="{{ s }}" {% if dependencia and dependencia.sector == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Domicilio</label>
+            <input type="text" name="domicilio" class="glass-input" value="{{ dependencia.domicilio if dependencia else '' }}" placeholder="Calle, número, colonia, ciudad...">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Contacto (Nombre de persona)</label>
+            <input type="text" name="contacto" class="glass-input" value="{{ dependencia.contacto if dependencia else '' }}">
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Teléfono</label>
+                <input type="text" name="telefono" class="glass-input" value="{{ dependencia.telefono if dependencia else '' }}">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Correo</label>
+                <input type="email" name="correo" class="glass-input" value="{{ dependencia.correo if dependencia else '' }}">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <a href="{{ url_for('dependencias.lista') }}" class="glass-btn glass-btn-outline">Cancelar</a>
+            <button type="submit" class="glass-btn">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

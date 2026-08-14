@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Gestión de Usuarios</h2>
+    <a href="{{ url_for('admin.crear_usuario') }}" class="glass-btn">➕ Nuevo Usuario</a>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Usuario</th>
+                <th>Nombre Completo</th>
+                <th>Rol</th>
+                <th>Fecha Creación</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in pagination.items %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.nombre_completo or '-' }}</td>
+                <td><span class="badge badge-info">{{ u.role.nombre }}</span></td>
+                <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '-' }}</td>
+                <td>
+                    <a href="{{ url_for('admin.editar_usuario', id=u.id) }}" class="glass-btn glass-btn-outline glass-btn-small">Editar</a>
+                    {% if u.id != current_user.id %}
+                    <button class="glass-btn glass-btn-danger glass-btn-small" data-delete-url="{{ url_for('admin.eliminar_usuario', id=u.id) }}" data-delete-name="{{ u.username }}">Eliminar</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 20px;">No hay usuarios registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/_pagination.html' %}
+{% endblock %}

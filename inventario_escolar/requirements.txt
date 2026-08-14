@@ -1,0 +1,10 @@
+Flask==3.1.1
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+Flask-Login==0.6.3
+psycopg2-binary==2.9.10
+pandas==2.2.3
+openpyxl==3.1.5
+docxtpl==0.19.0
+python-dotenv==1.1.0
+Werkzeug==3.1.3

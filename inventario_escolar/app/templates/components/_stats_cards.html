@@ -1,0 +1,22 @@
+<div class="stats-grid">
+    <div class="glass-card stats-card">
+        <div class="stats-icon">👥</div>
+        <div class="stats-number">{{ stats.total_alumnos }}</div>
+        <div class="stats-label">Total Alumnos</div>
+    </div>
+    <div class="glass-card stats-card">
+        <div class="stats-icon">📁</div>
+        <div class="stats-number">{{ stats.total_expedientes }}</div>
+        <div class="stats-label">Total Expedientes</div>
+    </div>
+    <div class="glass-card stats-card">
+        <div class="stats-icon">✅</div>
+        <div class="stats-number">{{ stats.expedientes_completos }}</div>
+        <div class="stats-label">Doc. Entregados</div>
+    </div>
+    <div class="glass-card stats-card">
+        <div class="stats-icon">📊</div>
+        <div class="stats-number">{{ '%.1f' | format(stats.tasa_completado) }}%</div>
+        <div class="stats-label">Tasa Entregas</div>
+    </div>
+</div>

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Carreras{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Gestión de Carreras</h2>
+    <a href="{{ url_for('admin.crear_carrera') }}" class="glass-btn">➕ Nueva Carrera</a>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Prefijo ID</th>
+                <th>Total Alumnos</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in carreras %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.nombre }}</td>
+                <td>{{ c.prefijo_id }}</td>
+                <td>{{ c.alumnos.filter_by(is_deleted=False).count() }}</td>
+                <td>
+                    <a href="{{ url_for('admin.editar_carrera', id=c.id) }}" class="glass-btn glass-btn-outline glass-btn-small">Editar</a>
+                    <button class="glass-btn glass-btn-danger glass-btn-small" data-delete-url="{{ url_for('admin.eliminar_carrera', id=c.id) }}" data-delete-name="la carrera {{ c.nombre }}">Eliminar</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px;">No hay carreras registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

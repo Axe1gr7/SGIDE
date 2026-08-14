@@ -1,0 +1,448 @@
+{% extends 'base.html' %}
+{% block title %}{{ modulo.nombre }} — Sub-módulos{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --vin-blur: blur(20px) saturate(180%);
+  --vin-glass: rgba(255,255,255,0.18);
+  --vin-border: rgba(255,255,255,0.35);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --vin-radius: 20px;
+  --mod-color: {{ modulo.color }};
+}
+[data-theme="dark"] {
+  --vin-glass: rgba(15,23,42,0.55);
+  --vin-border: rgba(255,255,255,0.12);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+/* ── Breadcrumb ────────────────────────────────────────── */
+.vin-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; color: var(--text-muted);
+  margin-bottom: 28px; flex-wrap: wrap;
+}
+.vin-breadcrumb a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.vin-breadcrumb a:hover { text-decoration: underline; }
+.vin-breadcrumb i.sep { font-size: 0.65rem; color: var(--text-muted); }
+
+/* ── Module Hero ───────────────────────────────────────── */
+.mod-hero {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: var(--vin-radius);
+  box-shadow: var(--vin-shadow);
+  padding: 32px 36px;
+  margin-bottom: 36px;
+  position: relative;
+  overflow: hidden;
+}
+.mod-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -10%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, var(--mod-color) 0%, transparent 70%);
+  opacity: 0.12;
+  pointer-events: none;
+}
+.mod-hero-inner {
+  position: relative;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  justify-content: space-between;
+}
+.mod-hero-left { display: flex; align-items: center; gap: 20px; }
+.mod-hero-icon {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--mod-color), color-mix(in srgb, var(--mod-color) 70%, transparent));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; color: #fff;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--mod-color) 40%, transparent);
+  flex-shrink: 0;
+}
+.mod-hero-text h2 {
+  font-size: 1.7rem; font-weight: 800; letter-spacing: -0.4px;
+  color: var(--text-primary); margin-bottom: 4px;
+}
+.mod-hero-text p { color: var(--text-muted); font-size: 0.95rem; }
+.mod-hero-actions { display: flex; gap: 12px; }
+
+/* ── Stat Strip ────────────────────────────────────────── */
+.vin-stats {
+  display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+}
+.vin-stat-pill {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 50px;
+  padding: 10px 22px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.9rem; font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: var(--vin-shadow);
+}
+.vin-stat-pill i { color: var(--mod-color); }
+.vin-stat-pill span { color: var(--text-muted); font-weight: 400; margin-left: 2px; }
+
+/* ── Sub-module Grid ───────────────────────────────────── */
+.sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.sub-card {
+  position: relative;
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 16px;
+  box-shadow: var(--vin-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(.22,1,.36,1), box-shadow 0.3s;
+  text-decoration: none; display: block; color: inherit;
+}
+.sub-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--mod-color), transparent);
+}
+.sub-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: var(--vin-hover-shadow);
+}
+.sub-card-body {
+  padding: 22px 22px 14px;
+  display: flex; align-items: center; gap: 14px;
+}
+.sub-card-ico {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--mod-color)cc, var(--mod-color)66);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: #fff; flex-shrink: 0;
+}
+.sub-card-info { flex: 1; min-width: 0; }
+.sub-card-name {
+  font-size: 1rem; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sub-card-desc {
+  font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.sub-card-footer {
+  padding: 10px 22px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--vin-border);
+}
+.sub-file-count {
+  font-size: 0.82rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.sub-file-count strong { color: var(--text-primary); }
+.sub-arrow {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(79,70,229,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; color: var(--accent);
+  transition: 0.2s;
+}
+.sub-card:hover .sub-arrow { background: var(--mod-color); color:#fff; transform:translateX(2px); }
+
+.sub-card-actions {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; gap: 5px; opacity: 0; transition: 0.25s; z-index: 5;
+}
+.sub-card:hover .sub-card-actions { opacity: 1; }
+.vin-action-btn {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--vin-border);
+  background: var(--vin-glass); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; cursor: pointer; transition: 0.2s;
+  color: var(--text-muted);
+}
+.vin-action-btn:hover { background: var(--bg-glass); color: var(--accent); }
+.vin-action-btn.del:hover { color: var(--danger); }
+
+/* Add sub-card */
+.sub-add-card {
+  background: transparent; border: 2px dashed var(--glass-border);
+  border-radius: 16px; min-height: 150px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer; transition: 0.3s;
+  color: var(--text-muted); font-size: 0.9rem;
+}
+.sub-add-card i { font-size: 1.8rem; opacity: 0.45; transition: 0.3s; }
+.sub-add-card:hover { border-color: var(--mod-color); color: var(--mod-color); background: rgba(0,0,0,0.02); }
+.sub-add-card:hover i { opacity: 1; transform: scale(1.1); }
+
+/* ── Modal ─────────────────────────────────────────────── */
+.vin-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: 0.3s;
+}
+.vin-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.vin-modal {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 24px;
+  box-shadow: var(--vin-hover-shadow);
+  width: 90%; max-width: 480px;
+  padding: 32px;
+  transform: translateY(30px) scale(0.96);
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1);
+}
+.vin-modal-overlay.active .vin-modal { transform: translateY(0) scale(1); }
+.vin-modal h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
+.vin-modal h3 i { color: var(--mod-color); }
+.vin-form-group { margin-bottom: 16px; }
+.vin-form-group label { display:block; margin-bottom:5px; font-weight:600; font-size:0.82rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; }
+.vin-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+.icon-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:5px; margin-top:6px; }
+.icon-opt { width:32px;height:32px;border:1px solid var(--glass-border);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.9rem;color:var(--text-muted);transition:0.2s;background:transparent; }
+.icon-opt:hover,.icon-opt.selected { background:var(--accent-gradient);color:#fff;border-color:transparent;box-shadow:0 3px 10px rgba(79,70,229,0.25); }
+
+@media(max-width:600px){
+  .sub-grid{grid-template-columns:1fr;}
+  .mod-hero-inner{flex-direction:column;align-items:flex-start;}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumb ─────────────────────────────────────────────────────────── -->
+<div class="vin-breadcrumb">
+  <a href="{{ url_for('vinculacion.lista') }}"><i class="fa-solid fa-link"></i> Vinculación</a>
+  <i class="fa-solid fa-chevron-right sep"></i>
+  <span>{{ modulo.nombre }}</span>
+</div>
+
+<!-- ── Module Hero ────────────────────────────────────────────────────────── -->
+<div class="mod-hero">
+  <div class="mod-hero-inner">
+    <div class="mod-hero-left">
+      <div class="mod-hero-icon"><i class="fa-solid {{ modulo.icono }}"></i></div>
+      <div class="mod-hero-text">
+        <h2>{{ modulo.nombre }}</h2>
+        <p>{{ modulo.descripcion or 'Sin descripción' }}</p>
+      </div>
+    </div>
+    <div class="mod-hero-actions">
+      <button class="glass-btn glass-btn-outline glass-btn-small" id="btnNuevoSub">
+        <i class="fa-solid fa-plus"></i> Nuevo Sub-módulo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Stats ──────────────────────────────────────────────────────────────── -->
+<div class="vin-stats">
+  <div class="vin-stat-pill">
+    <i class="fa-solid fa-folder-open"></i>
+    <strong>{{ submodulos|length }}</strong>
+    <span>Sub-módulo{{ 's' if submodulos|length != 1 else '' }}</span>
+  </div>
+  <div class="vin-stat-pill">
+    <i class="fa-solid fa-file"></i>
+    <strong>
+      {% set ns = namespace(total=0) %}
+      {% for s in submodulos %}{% set ns.total = ns.total + s.archivos.filter_by(is_deleted=False).count() %}{% endfor %}
+      {{ ns.total }}
+    </strong>
+    <span>Archivos totales</span>
+  </div>
+</div>
+
+<!-- ── Sub-módulos Grid ───────────────────────────────────────────────────── -->
+<div class="sub-grid">
+  {% for s in submodulos %}
+  {% set arc_count = s.archivos.filter_by(is_deleted=False).count() %}
+  <div class="sub-card" onclick="goToSub({{ modulo.id }}, {{ s.id }})">
+    <div class="sub-card-actions">
+      <button class="vin-action-btn" title="Editar"
+              onclick="event.stopPropagation(); openEditSub({{ s.id }}, '{{ s.nombre|e }}', '{{ s.descripcion or ''|e }}', '{{ s.icono }}')">
+        <i class="fa-solid fa-pencil"></i>
+      </button>
+      <button class="vin-action-btn del" title="Eliminar"
+              onclick="event.stopPropagation(); confirmDelSub({{ s.id }}, '{{ s.nombre|e }}')">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+
+    <div class="sub-card-body">
+      <div class="sub-card-ico"><i class="fa-solid {{ s.icono }}"></i></div>
+      <div class="sub-card-info">
+        <div class="sub-card-name">{{ s.nombre }}</div>
+        <div class="sub-card-desc">{{ s.descripcion or 'Sin descripción' }}</div>
+      </div>
+    </div>
+    <div class="sub-card-footer">
+      <div class="sub-file-count">
+        <i class="fa-solid fa-file-lines"></i>
+        <strong>{{ arc_count }}</strong>
+        archivo{{ 's' if arc_count != 1 else '' }}
+      </div>
+      <div class="sub-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+  </div>
+  {% else %}
+  <div class="glass-card" style="grid-column:1/-1;text-align:center;padding:60px 24px;">
+    <i class="fa-solid fa-folder-open" style="font-size:3rem;opacity:0.3;margin-bottom:16px;display:block;"></i>
+    <p style="color:var(--text-muted);">No hay sub-módulos. ¡Crea el primero!</p>
+  </div>
+  {% endfor %}
+
+  {% if submodulos %}
+  <div class="sub-add-card" onclick="document.getElementById('btnNuevoSub').click()">
+    <i class="fa-solid fa-plus"></i>
+    <span>Agregar sub-módulo</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══════════ MODAL: NUEVO SUB ════════════ -->
+<div class="vin-modal-overlay" id="modalNuevoSub">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-folder-plus"></i> Nuevo Sub-módulo</h3>
+    <form method="POST" action="{{ url_for('vinculacion.crear_submodulo', id=modulo.id) }}">
+      <div class="vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" class="glass-input" placeholder="Ej. Cartas de intención" required>
+      </div>
+      <div class="vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" class="glass-textarea" rows="2" placeholder="Breve descripción…"></textarea>
+      </div>
+      <div class="vin-form-group">
+        <label>Ícono</label>
+        <input type="hidden" name="icono" id="iconoNuevoSub" value="fa-folder-open">
+        <div class="icon-grid" id="iconGridNuevoSub">{% include 'vinculacion/_icon_opts.html' %}</div>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalNuevoSub')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: EDITAR SUB ════════════ -->
+<div class="vin-modal-overlay" id="modalEditarSub">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-pencil"></i> Editar Sub-módulo</h3>
+    <form method="POST" id="formEditarSub">
+      <div class="vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" id="editSubNombre" class="glass-input" required>
+      </div>
+      <div class="vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" id="editSubDesc" class="glass-textarea" rows="2"></textarea>
+      </div>
+      <div class="vin-form-group">
+        <label>Ícono</label>
+        <input type="hidden" name="icono" id="iconoEditarSub" value="fa-folder-open">
+        <div class="icon-grid" id="iconGridEditarSub">{% include 'vinculacion/_icon_opts.html' %}</div>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEditarSub')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: ELIMINAR SUB ════════════ -->
+<div class="vin-modal-overlay" id="modalEliminarSub">
+  <div class="vin-modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:2.8rem;margin-bottom:14px;">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i>
+    </div>
+    <h3 style="justify-content:center;">¿Eliminar sub-módulo?</h3>
+    <p id="delSubMsg" style="color:var(--text-muted);margin-bottom:20px;font-size:0.9rem;"></p>
+    <form method="POST" id="formEliminarSub">
+      <div class="vin-modal-footer" style="justify-content:center;">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEliminarSub')">Cancelar</button>
+        <button type="submit" class="glass-btn glass-btn-danger"><i class="fa-solid fa-trash"></i> Eliminar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MOD_ID = {{ modulo.id }};
+
+function goToSub(mid, sid) {
+  window.location.href = `/vinculacion/${mid}/submodulo/${sid}`;
+}
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+document.querySelectorAll('.vin-modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target===o) closeModal(o.id); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.vin-modal-overlay.active').forEach(o=>closeModal(o.id));
+});
+
+document.getElementById('btnNuevoSub').addEventListener('click', () => openModal('modalNuevoSub'));
+
+function initIconGrid(gridId, hiddenId, initial) {
+  const grid = document.getElementById(gridId);
+  const hidden = document.getElementById(hiddenId);
+  grid.querySelectorAll('.icon-opt').forEach(btn => {
+    if (btn.dataset.icon === initial) btn.classList.add('selected');
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.icon-opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      hidden.value = btn.dataset.icon;
+    });
+  });
+}
+
+initIconGrid('iconGridNuevoSub', 'iconoNuevoSub', 'fa-folder-open');
+initIconGrid('iconGridEditarSub', 'iconoEditarSub', 'fa-folder-open');
+
+function openEditSub(sid, nombre, desc, icono) {
+  document.getElementById('editSubNombre').value = nombre;
+  document.getElementById('editSubDesc').value = desc;
+  document.getElementById('formEditarSub').action = `/vinculacion/${MOD_ID}/submodulo/${sid}/editar`;
+  const grid = document.getElementById('iconGridEditarSub');
+  grid.querySelectorAll('.icon-opt').forEach(b => b.classList.toggle('selected', b.dataset.icon===icono));
+  document.getElementById('iconoEditarSub').value = icono;
+  openModal('modalEditarSub');
+}
+
+function confirmDelSub(sid, nombre) {
+  document.getElementById('delSubMsg').textContent = `"${nombre}" y todos sus archivos serán eliminados.`;
+  document.getElementById('formEliminarSub').action = `/vinculacion/${MOD_ID}/submodulo/${sid}/eliminar`;
+  openModal('modalEliminarSub');
+}
+</script>
+{% endblock %}

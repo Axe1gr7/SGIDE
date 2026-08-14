@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}{% if alumno %}Editar{% else %}Nuevo{% endif %} Alumno{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+    <h2>{% if alumno %}Editar{% else %}Nuevo{% endif %} Alumno</h2>
+    <hr style="border:0; border-top:1px solid var(--glass-border); margin: 20px 0;">
+
+    {% if not alumno %}
+    <div class="toast toast-info" style="position:relative; margin-bottom: 20px; animation: none; transform:none; right:auto; bottom:auto;">
+        ℹ️ Al registrar el alumno, se generarán automáticamente sus 3 expedientes (Prácticas, Servicio y Vinculación).
+    </div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label class="form-label">Nombre Completo <span class="text-muted" style="font-weight:normal; font-size:0.8rem;">(Opcional, se puede completar después)</span></label>
+            <input type="text" name="nombre" class="glass-input" value="{{ alumno.nombre if alumno else '' }}" placeholder="Ej: Juan Pérez López">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Matrícula <span class="text-muted" style="font-weight:normal; font-size:0.8rem;">(Opcional, se puede completar después)</span></label>
+            <input type="text" name="matricula" class="glass-input" value="{{ alumno.matricula if alumno else '' }}" placeholder="Ej: 20210001">
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Año de Ingreso (2 dígitos, Ej: 18) <span class="text-muted" style="font-weight:normal; font-size:0.8rem;">(Opcional)</span></label>
+                <input type="number" name="anio_generacion" class="glass-input" value="{{ alumno.anio_generacion if alumno else '' }}" min="0" max="99" placeholder="Ej: 18">
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Año de Egreso (2 dígitos, Ej: 21) <span class="text-muted" style="font-weight:normal; font-size:0.8rem;">(Opcional)</span></label>
+                <input type="number" name="anio_egreso" class="glass-input" value="{{ alumno.anio_egreso if alumno else '' }}" min="0" max="99" placeholder="Opcional">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Estatus</label>
+            <select name="estatus" class="glass-select">
+                <option value="Activo" {% if alumno and alumno.estatus == 'Activo' %}selected{% endif %}>Activo</option>
+                <option value="Inactivo" {% if alumno and alumno.estatus == 'Inactivo' %}selected{% endif %}>Inactivo</option>
+                <option value="Egresado" {% if alumno and alumno.estatus == 'Egresado' %}selected{% endif %}>Egresado</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 2;">
+                <label class="form-label">Carrera <span class="text-muted" style="font-weight:normal; font-size:0.8rem;">(Opcional, se puede completar después)</span></label>
+                <select name="carrera_id" class="glass-select">
+                    <option value="">Seleccione...</option>
+                    {% for c in carreras %}
+                    <option value="{{ c.id }}" {% if alumno and alumno.carrera_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% if alumno %}
+        <div class="form-group">
+            <label class="form-label">Expediente Base (Generado Automáticamente)</label>
+            <input type="text" class="glass-input" value="{{ alumno.expediente_base }}" readonly disabled>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <a href="{{ url_for('admin.alumnos') }}" class="glass-btn glass-btn-outline">Cancelar</a>
+            <button type="submit" class="glass-btn">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

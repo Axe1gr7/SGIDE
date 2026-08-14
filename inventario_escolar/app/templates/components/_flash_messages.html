@@ -1,0 +1,15 @@
+<div class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="toast toast-{{ category }}">
+                <span class="toast-icon">
+                    {% if category == 'success' %}✅{% elif category == 'danger' %}❌{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+                </span>
+                <span class="toast-message">{{ message }}</span>
+                <button class="toast-close glass-btn glass-btn-outline glass-btn-small" style="border:none; padding:0 5px;">&times;</button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>

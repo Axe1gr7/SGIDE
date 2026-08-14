@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Dependencias / Lugares{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h2>Catálogo de Dependencias / Lugares</h2>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('dependencias.importar') }}" class="glass-btn glass-btn-outline">📥 Importar Excel</a>
+        {% if current_user.role.nombre == 'Super Admin' %}
+        <a href="{{ url_for('dependencias.crear') }}" class="glass-btn">➕ Nueva Dependencia</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre de la dependencia...">
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+            <label class="form-label">Tipo</label>
+            <select name="tipo_filter" class="glass-select">
+                <option value="">Todos</option>
+                {% for t in tipos %}
+                <option value="{{ t }}" {% if tipo_filter == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="glass-btn">Filtrar</button>
+            <a href="{{ url_for('dependencias.lista') }}" class="glass-btn glass-btn-outline">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Sector</th>
+                <th>Domicilio</th>
+                <th>Contacto</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in dependencias %}
+            <tr>
+                <td style="font-weight: 500;">{{ d.nombre }}</td>
+                <td><span class="badge badge-info">{{ d.tipo }}</span></td>
+                <td>
+                    {% if d.sector %}
+                    <span class="badge badge-{{ d.sector }}">{{ d.sector }}</span>
+                    {% else %}
+                    <span style="color: var(--text-muted);">-</span>
+                    {% endif %}
+                </td>
+                <td>{{ d.domicilio or '-' }}</td>
+                <td>{{ d.contacto or '-' }}</td>
+                <td>{{ d.telefono or '-' }}</td>
+                <td>{{ d.correo or '-' }}</td>
+                <td>
+                    <div style="display: flex; gap: 5px;">
+                        {% if current_user.role.nombre == 'Super Admin' %}
+                        <a href="{{ url_for('dependencias.editar', id=d.id) }}" class="glass-btn glass-btn-outline glass-btn-small">Editar</a>
+                        <button class="glass-btn glass-btn-danger glass-btn-small" data-delete-url="{{ url_for('dependencias.eliminar', id=d.id) }}" data-delete-name="la dependencia {{ d.nombre }}">Eliminar</button>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">-</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 20px;">No hay dependencias registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{% if documento %}Editar{% else %}Agregar{% endif %} Documento{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+    <div style="margin-bottom: 20px;">
+        <a href="{{ url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al expediente</a>
+    </div>
+    
+    <h2>{% if documento %}Editar{% else %}Agregar{% endif %} Documento</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Expediente: <strong style="color: var(--text-primary);">{{ expediente.clave_expediente }}</strong> ({{ expediente.alumno.nombre }})</p>
+    <hr style="border:0; border-top:1px solid var(--glass-border); margin: 15px 0 25px;">
+    
+    <form method="POST" action="{{ form_action }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label class="form-label">Nombre del Formato/Documento</label>
+            <input type="text" name="nombre_formato" class="glass-input" value="{{ documento.nombre_formato if documento else '' }}" required placeholder="Ej: Carta de Aceptación, Reporte Mensual 1...">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="glass-select" required>
+                <option value="Pendiente" {% if documento and documento.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="Entregado" {% if documento and documento.estado == 'Entregado' %}selected{% endif %}>Entregado</option>
+                <option value="Recibido" {% if documento and documento.estado == 'Recibido' %}selected{% endif %}>Recibido</option>
+                <option value="No Realizado" {% if documento and documento.estado == 'No Realizado' %}selected{% endif %}>No Realizado</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Observaciones (Opcional)</label>
+            <textarea name="observaciones" class="glass-textarea" rows="3">{{ documento.observaciones if documento else '' }}</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Archivo Escaneado (Opcional, PDF/Imagen)</label>
+            {% if documento and documento.ruta_archivo %}
+            <div style="margin-bottom: 10px; font-size: 0.9rem;">
+                Archivo actual: <strong style="color: var(--accent);">{{ documento.ruta_archivo }}</strong>
+                <br>
+                <small class="text-muted">Sube un nuevo archivo para reemplazar el existente.</small>
+            </div>
+            {% endif %}
+            
+            <div id="dropZone" class="drop-zone" style="padding: 20px;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📎</div>
+                <div id="fileName" style="font-weight: 600; color: var(--accent); margin-bottom: 5px;">Ningún archivo seleccionado</div>
+                <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">Haz clic para buscar</p>
+                <input type="file" name="archivo" id="fileInput" style="display: none;">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <a href="{{ url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" class="glass-btn glass-btn-outline">Cancelar</a>
+            <button type="submit" class="glass-btn">Guardar Documento</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

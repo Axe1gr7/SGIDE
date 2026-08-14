@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SGIDE</title>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body.auth-body {
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .auth-wrapper {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .auth-card {
+            background: var(--bg-glass);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .auth-title i {
+            color: var(--accent);
+        }
+
+        .auth-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .theme-toggle-auth {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .theme-toggle-auth:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .input-group .glass-input {
+            padding-left: 45px;
+            height: 48px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            height: 48px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body class="auth-body">
+    
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <button id="themeToggle" class="theme-toggle-auth" title="Alternar tema">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+            
+            <div class="auth-header">
+                <h1 class="auth-title">
+                    <i class="fa-solid fa-layer-group"></i> SGIDE
+                </h1>
+                <p class="auth-subtitle">Sistema de Gestión de Inventario<br>de Documentos Escolares</p>
+            </div>
+            
+            {% include 'components/_flash_messages.html' %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Usuario</label>
+                    <div class="input-group">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" name="username" class="glass-input" placeholder="Ingresa tu usuario" required autocomplete="username" autofocus>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Contraseña</label>
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" name="password" class="glass-input" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                </div>
+                
+                <button type="submit" class="glass-btn submit-btn">
+                    Iniciar Sesión <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

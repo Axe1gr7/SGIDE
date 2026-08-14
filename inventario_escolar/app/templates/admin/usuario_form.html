@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}{% if user %}Editar{% else %}Nuevo{% endif %} Usuario{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+    <h2>{% if user %}Editar{% else %}Nuevo{% endif %} Usuario</h2>
+    <hr style="border:0; border-top:1px solid var(--glass-border); margin: 20px 0;">
+    
+    <form method="POST">
+        <div class="form-group">
+            <label class="form-label">Nombre de Usuario (Login)</label>
+            <input type="text" name="username" class="glass-input" value="{{ user.username if user else '' }}" required {% if user %}readonly{% endif %}>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Nombre Completo</label>
+            <input type="text" name="nombre_completo" class="glass-input" value="{{ user.nombre_completo if user else '' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Rol</label>
+            <select name="role_id" class="glass-select" required>
+                {% for r in roles %}
+                <option value="{{ r.id }}" {% if user and user.role_id == r.id %}selected{% endif %}>{{ r.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Contraseña {% if user %}<span class="text-muted" style="font-size:0.8rem; font-weight:normal;">(Dejar en blanco para no cambiar)</span>{% endif %}</label>
+            <input type="password" name="password" class="glass-input" {% if not user %}required{% endif %}>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <a href="{{ url_for('admin.usuarios') }}" class="glass-btn glass-btn-outline">Cancelar</a>
+            <button type="submit" class="glass-btn">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
