@@ -10,6 +10,10 @@ app = create_app()
 @app.cli.command('seed-db')
 def seed_db():
     """Limpia todos los datos y puebla la base de datos con datos de ejemplo."""
+    # 0. ASEGURAR QUE LAS TABLAS EXISTAN
+    click.echo('🔨 Creando tablas en la base de datos si no existen...')
+    db.create_all()
+    
     # --- 1. BORRAR TODOS LOS DATOS EXISTENTES ---
     # Borrar en orden inverso de dependencias (FK)
     click.echo('🗑️  Borrando todos los datos existentes...')

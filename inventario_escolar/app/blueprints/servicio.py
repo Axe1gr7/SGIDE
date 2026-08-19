@@ -64,8 +64,8 @@ def detalle(id):
     expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
     documentos = active_query(Documento).filter_by(expediente_id=id).all()
     dependencias = active_query(Dependencia).filter(
-        (Dependencia.tipo == 'Servicio') | (Dependencia.tipo == 'Ambos')
-    ).all()
+        db.func.lower(Dependencia.tipo).in_(['servicio', 'ambos'])
+    ).order_by(Dependencia.nombre).all()
     return render_template('expedientes/detalle.html',
                            expediente=expediente,
                            alumno=expediente.alumno,

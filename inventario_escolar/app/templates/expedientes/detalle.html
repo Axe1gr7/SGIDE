@@ -42,26 +42,45 @@
 {% if es_practicas %}
     <!-- Dependencia Card (Prácticas) -->
     <div class="glass-card" style="flex: 1; min-width: 300px;">
-        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Lugar / Empresa</h3>
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Empresa / Lugar</h3>
 
-        <p style="color: var(--text-muted); margin-bottom: 15px;">
-            Lugar actual:
+        <p style="color: var(--text-muted); margin-bottom: 5px;">
+            Empresa actual:
             <strong style="color: var(--text-primary);">
                 {{ expediente.dependencia.nombre if expediente.dependencia else 'Sin asignar' }}
             </strong>
         </p>
 
+        {% if expediente.dependencia %}
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; display: grid; gap: 5px;">
+            {% if expediente.dependencia.domicilio %}
+            <span>📍 {{ expediente.dependencia.domicilio }}</span>
+            {% endif %}
+            {% if expediente.dependencia.contacto %}
+            <span>👤 {{ expediente.dependencia.contacto }}</span>
+            {% endif %}
+            {% if expediente.dependencia.telefono %}
+            <span>📞 {{ expediente.dependencia.telefono }}</span>
+            {% endif %}
+            {% if expediente.dependencia.correo %}
+            <span>✉️ {{ expediente.dependencia.correo }}</span>
+            {% endif %}
+        </div>
+        {% else %}
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Sin información de contacto registrada.</p>
+        {% endif %}
+
         <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_dependencia', id=expediente.id) }}">
             <div class="form-group">
-                <label class="form-label">Lugar / Empresa (catálogo)</label>
+                <label class="form-label">Empresa / Lugar (catálogo)</label>
                 <select name="dependencia_id" class="glass-select">
                     <option value="">Sin asignar</option>
                     {% for d in dependencias %}
-                    <option value="{{ d.id }}" {% if expediente.dependencia_id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                    <option value="{{ d.id }}" {% if expediente.dependencia_id == d.id %}selected{% endif %}>{{ d.nombre }} ({{ d.domicilio or d.tipo }})</option>
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" class="glass-btn">Asignar Lugar</button>
+            <button type="submit" class="glass-btn">Asignar Empresa</button>
         </form>
     </div>
     {% endif %}
@@ -77,9 +96,26 @@
                 {{ expediente.dependencia.nombre if expediente.dependencia else 'Sin asignar' }}
             </strong>
         </p>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">
+        <p style="color: var(--text-muted); margin-bottom: 10px;">
             Sector actual: <strong style="color: var(--text-primary);">{{ expediente.sector or 'Sin asignar' }}</strong>
         </p>
+
+        {% if expediente.dependencia %}
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; display: grid; gap: 5px;">
+            {% if expediente.dependencia.domicilio %}
+            <span>📍 {{ expediente.dependencia.domicilio }}</span>
+            {% endif %}
+            {% if expediente.dependencia.contacto %}
+            <span>👤 {{ expediente.dependencia.contacto }}</span>
+            {% endif %}
+            {% if expediente.dependencia.telefono %}
+            <span>📞 {{ expediente.dependencia.telefono }}</span>
+            {% endif %}
+            {% if expediente.dependencia.correo %}
+            <span>✉️ {{ expediente.dependencia.correo }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
 
         <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_dependencia', id=expediente.id) }}" style="margin-bottom: 15px;">
             <div class="form-group">

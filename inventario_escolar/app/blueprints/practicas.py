@@ -16,6 +16,8 @@ MODULO_TIPO = 'p'
 MODULO_LABEL = 'Prácticas Profesionales'
 MODULO_PREFIX = 'practicas'
 
+ESTATUSES = ['Activo', 'Inactivo', 'Egresado']
+
 @practicas_bp.before_request
 @login_required
 @roles_required('Super Admin', 'Practicas')
@@ -28,6 +30,7 @@ def lista():
     carrera_filter = request.args.get('carrera_filter')
     search = request.args.get('search')
     estado_filter = request.args.get('estado_filter')
+    estatus_filter = request.args.get('estatus_filter')
 
     query = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).join(Alumno)
 
@@ -37,6 +40,8 @@ def lista():
         query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
     if estado_filter:
         query = query.join(Documento).filter(Documento.estado == estado_filter).distinct()
+    if estatus_filter:
+        query = query.filter(Alumno.estatus == estatus_filter)
 
     pagination = query.paginate(page=page, per_page=20, error_out=False)
     carreras = active_query(Carrera).all()
@@ -47,6 +52,9 @@ def lista():
                            carrera_filter=carrera_filter,
                            search=search,
                            estado_filter=estado_filter,
+                           estatus_filter=estatus_filter,
+                           estatuses=ESTATUSES,
+                           es_practicas=True,
                            modulo_label=MODULO_LABEL,
                            modulo_tipo=MODULO_TIPO,
                            modulo_prefix=MODULO_PREFIX)
@@ -56,8 +64,8 @@ def detalle(id):
     expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
     documentos = active_query(Documento).filter_by(expediente_id=id).all()
     dependencias = active_query(Dependencia).filter(
-        (Dependencia.tipo == 'Practicas') | (Dependencia.tipo == 'Ambos')
-    ).all()
+        db.func.lower(Dependencia.tipo).in_(['practicas', 'ambos'])
+    ).order_by(Dependencia.nombre).all()
     return render_template('expedientes/detalle.html',
                            expediente=expediente,
                            alumno=expediente.alumno,

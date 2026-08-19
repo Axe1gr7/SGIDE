@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SGIDE</title>
+    <title>Login - CECINTEGRA</title>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -17,7 +18,7 @@
             margin: 0;
             padding: 20px;
         }
-        
+
         .auth-wrapper {
             width: 100%;
             max-width: 450px;
@@ -113,40 +114,43 @@
         }
     </style>
 </head>
+
 <body class="auth-body">
-    
+
     <div class="auth-wrapper">
         <div class="auth-card">
             <button id="themeToggle" class="theme-toggle-auth" title="Alternar tema">
                 <i id="themeIcon" class="fa-solid fa-moon"></i>
             </button>
-            
+
             <div class="auth-header">
                 <h1 class="auth-title">
-                    <i class="fa-solid fa-layer-group"></i> SGIDE
+                    <i class="fa-solid fa-layer-group"></i> CECINTEGRA
                 </h1>
-                <p class="auth-subtitle">Sistema de Gestión de Inventario<br>de Documentos Escolares</p>
+                <p class="auth-subtitle">Sistema Integral de Gestión y Documentación Estudiantil del CECyTEQ</p>
             </div>
-            
+
             {% include 'components/_flash_messages.html' %}
-            
+
             <form method="POST">
                 <div class="form-group">
                     <label class="form-label">Usuario</label>
                     <div class="input-group">
                         <i class="fa-solid fa-user"></i>
-                        <input type="text" name="username" class="glass-input" placeholder="Ingresa tu usuario" required autocomplete="username" autofocus>
+                        <input type="text" name="username" class="glass-input" placeholder="Ingresa tu usuario" required
+                            autocomplete="username" autofocus>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label class="form-label">Contraseña</label>
                     <div class="input-group">
                         <i class="fa-solid fa-lock"></i>
-                        <input type="password" name="password" class="glass-input" placeholder="••••••••" required autocomplete="current-password">
+                        <input type="password" name="password" class="glass-input" placeholder="••••••••" required
+                            autocomplete="current-password">
                     </div>
                 </div>
-                
+
                 <button type="submit" class="glass-btn submit-btn">
                     Iniciar Sesión <i class="fa-solid fa-arrow-right-to-bracket ml-2"></i>
                 </button>
@@ -156,4 +160,5 @@
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
+
 </html>

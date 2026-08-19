@@ -3,6 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
+print(os.environ.get('DATABASE_URL'))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-fallback-key')

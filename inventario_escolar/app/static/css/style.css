@@ -226,15 +226,38 @@ a:hover {
 /* Tables */
 .glass-table-wrapper {
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-glass);
   backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  width: 100%;
+}
+
+.glass-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.glass-table-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+
+.glass-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--input-border);
+  border-radius: 4px;
+}
+
+.glass-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
 
 .glass-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
 }
 
