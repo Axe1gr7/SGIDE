@@ -4,13 +4,17 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
 from flask_login import login_required
 from sqlalchemy import func
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, abort
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Alumno, Carrera, Expediente, Documento, Practica, Dependencia
 from app.decorators import roles_required, active_query
+from app.services.logic_word import generar_documento_word
+from app.services.logic_zip import procesar_zip_pdfs
+from app.models import CarpetaCompartida, ArchivoCompartido
 
 practicas_bp = Blueprint('practicas', __name__)
-
 MODULO_LABEL = 'Prácticas Profesionales'
 MODULO_PREFIX = 'practicas'
 
@@ -565,6 +569,83 @@ def asignar(alumno_id):
     dependencias = Dependencia.query.filter(
         Dependencia.tipo.in_(['Practicas', 'Ambos']),
         Dependencia.is_deleted == False
+@practicas_bp.route('/exportar-compartidos', methods=['POST'])
+def exportar_compartidos():
+    import pandas as pd
+    from datetime import datetime
+    import os
+    
+    carpeta_id = request.form.get('carpeta_id')
+    nueva_carpeta = request.form.get('nueva_carpeta')
+    nombre_archivo = request.form.get('nombre_archivo', 'Reporte_Practicas')
+    
+    if nueva_carpeta:
+        carpeta = CarpetaCompartida(nombre=nueva_carpeta, created_by_id=current_user.id)
+        db.session.add(carpeta)
+        db.session.commit()
+        carpeta_id = carpeta.id
+    elif carpeta_id:
+        carpeta = active_query(CarpetaCompartida).filter_by(id=carpeta_id).first_or_404()
+    else:
+        flash('Debe seleccionar o crear una carpeta.', 'danger')
+        return redirect(url_for(f'{MODULO_PREFIX}.lista'))
+
+    carrera_filter = request.form.get('carrera_filter')
+    search = request.form.get('search')
+    estado_filter = request.form.get('estado_filter')
+    estatus_filter = request.form.get('estatus_filter')
+
+    query = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).join(Alumno)
+    if carrera_filter: query = query.filter(Alumno.carrera_id == carrera_filter)
+    if search: query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
+    if estado_filter: query = query.join(Documento).filter(Documento.estado == estado_filter).distinct()
+    if estatus_filter: query = query.filter(Alumno.estatus == estatus_filter)
+
+    data = []
+    for e in query.all():
+        data.append({
+            'Clave Expediente': e.clave_expediente,
+            'Alumno': e.alumno.nombre,
+            'Matrícula': e.alumno.matricula,
+            'Carrera': e.alumno.carrera.nombre if e.alumno.carrera else '',
+            'Generación': e.alumno.generacion_completa,
+            'Estatus': e.alumno.estatus,
+            'Empresa/Lugar': e.dependencia.nombre if e.dependencia else '-',
+            'Total Docs': e.documentos.filter_by(is_deleted=False).count(),
+            'Docs Entregados': e.documentos.filter_by(is_deleted=False, estado='Entregado').count()
+        })
+        
+    df = pd.DataFrame(data)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{nombre_archivo}_{timestamp}.xlsx"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'compartidos', str(carpeta_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    ruta_absoluta = os.path.join(upload_dir, filename)
+    
+    df.to_excel(ruta_absoluta, index=False)
+    
+    ruta_relativa = os.path.join('compartidos', str(carpeta_id), filename)
+    
+    nuevo_archivo = ArchivoCompartido(
+        carpeta_id=carpeta_id,
+        nombre=nombre_archivo,
+        ruta_archivo=ruta_relativa,
+        tipo_archivo='xlsx',
+        uploaded_by_id=current_user.id
+    )
+    db.session.add(nuevo_archivo)
+    db.session.commit()
+    
+    flash(f'Reporte guardado en Compartidos -> {carpeta.nombre}', 'success')
+    return redirect(url_for(f'{MODULO_PREFIX}.lista'))
+
+@practicas_bp.route('/<int:id>')
+def detalle(id):
+    expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
+    documentos = active_query(Documento).filter_by(expediente_id=id).all()
+    dependencias = active_query(Dependencia).filter(
+        db.func.lower(Dependencia.tipo).in_(['practicas', 'ambos'])
     ).order_by(Dependencia.nombre).all()
 
     return render_template('practicas/asignar_form.html',

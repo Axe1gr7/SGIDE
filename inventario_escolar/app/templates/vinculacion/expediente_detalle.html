@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% block title %}Expediente Estancia - {{ alumno.nombre }}{% endblock %}
+
+{% block head %}
+<style>
+/* Modals custom styling aligned with Vinculación design system */
+.vin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.vin-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.vin-modal {
+  background: var(--bg-glass);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 450px;
+  padding: 30px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.vin-modal-overlay.active .vin-modal { transform: translateY(0) scale(1); }
+.vin-modal h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.vin-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <a href="{{ url_for('vinculacion.alumnos') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a Alumnos</a>
+        <h2 style="margin-top: 5px;">Expediente de Estancia: {{ expediente.clave_expediente }}</h2>
+    </div>
+    <form action="{{ url_for('vinculacion.generar_word_estancia', id=expediente.id) }}" method="POST">
+        <button type="submit" class="glass-btn" style="background: var(--info);">📄 Generar Formato Word</button>
+    </form>
+</div>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 24px;">
+    <!-- Alumno Info Card -->
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Datos del Alumno</h3>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 20px; font-size: 0.95rem;">
+            <strong style="color: var(--text-muted);">Nombre:</strong>
+            <span>{{ alumno.nombre }}</span>
+
+            <strong style="color: var(--text-muted);">Matrícula:</strong>
+            <span>{{ alumno.matricula }}</span>
+
+            <strong style="color: var(--text-muted);">Carrera:</strong>
+            <span>{{ alumno.carrera.nombre if alumno.carrera else '-' }}</span>
+
+            <strong style="color: var(--text-muted);">Generación:</strong>
+            <span>{{ alumno.generacion_completa }}</span>
+
+            <strong style="color: var(--text-muted);">Estatus:</strong>
+            <span><span class="badge badge-{{ alumno.estatus }}">{{ alumno.estatus }}</span></span>
+
+            <strong style="color: var(--text-muted);">Expediente Base:</strong>
+            <span>{{ alumno.expediente_base }}</span>
+        </div>
+    </div>
+
+    <!-- Universidad Asignada Info Card -->
+    <div class="glass-card" style="flex: 1; min-width: 300px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Estancia Académica</h3>
+        <p style="color: var(--text-muted); margin-bottom: 8px;">
+            Universidad: <strong style="color: var(--text-primary);">{{ expediente.universidad.nombre if expediente.universidad else 'Sin asignar' }}</strong>
+        </p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">
+            Periodo: <strong style="color: var(--text-primary);">{{ expediente.periodo or 'Sin asignar' }}</strong>
+        </p>
+
+        <form method="POST" action="{{ url_for('vinculacion.actualizar_estancia_exp', id=expediente.id) }}">
+            <div class="form-group">
+                <label class="form-label">Asignar/Cambiar Universidad</label>
+                <select name="universidad_id" class="glass-select" required>
+                    <option value="">Ninguna</option>
+                    {% for u in universidades %}
+                    <option value="{{ u.id }}" {% if expediente.universidad_id == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Periodo</label>
+                <input type="text" name="periodo" class="glass-input" value="{{ expediente.periodo or '' }}" required placeholder="Ej. Enero - Junio 2026">
+            </div>
+            <button type="submit" class="glass-btn">Actualizar Estancia</button>
+        </form>
+    </div>
+</div>
+
+<!-- Listado de Documentos -->
+<div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <h3>Documentos del Expediente</h3>
+        <button class="glass-btn glass-btn-outline glass-btn-small" onclick="openModal('modalNuevoDoc')">➕ Agregar Documento</button>
+    </div>
+
+    <div class="glass-table-wrapper">
+        <table class="glass-table">
+            <thead>
+                <tr>
+                    <th>Nombre de Formato / Constancia</th>
+                    <th>Estado</th>
+                    <th>Archivo</th>
+                    <th>Observaciones</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documentos %}
+                <tr>
+                    <td style="font-weight: 600;">{{ doc.nombre_formato }}</td>
+                    <td>
+                        {% set badge_class = doc.estado|replace(' ', '') %}
+                        <span class="badge badge-{{ badge_class }}">{{ doc.estado }}</span>
+                    </td>
+                    <td>
+                        {% if doc.ruta_archivo %}
+                        <a href="{{ url_for('vinculacion.descargar_archivo_estancia', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small">
+                            💾 Descargar
+                        </a>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Sin archivo</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ doc.observaciones or '-' }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="glass-btn glass-btn-outline glass-btn-small" 
+                                    onclick="openEditDocModal({{ doc.id }}, '{{ doc.nombre_formato|escape }}', '{{ doc.estado|escape }}', '{{ (doc.observaciones or '')|escape }}')">
+                                Editar
+                            </button>
+                            <button class="glass-btn glass-btn-danger glass-btn-small" 
+                                    onclick="openDeleteDocModal({{ doc.id }}, '{{ doc.nombre_formato|escape }}')">
+                                Eliminar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">No hay constancias o documentos cargados en este expediente.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL NUEVO DOC -->
+<div class="vin-modal-overlay" id="modalNuevoDoc">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-file-invoice" style="color: var(--accent);"></i> Agregar Documento / Constancia</h3>
+        <form method="POST" action="{{ url_for('vinculacion.crear_documento_estancia', id=expediente.id) }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label class="form-label">Nombre del Formato *</label>
+                <input type="text" name="nombre_formato" class="glass-input" required placeholder="Ej. Constancia de Aceptación de Estancia">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Estado *</label>
+                <select name="estado" class="glass-select" required>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Entregado">Entregado</option>
+                    <option value="Recibido">Recibido</option>
+                    <option value="No Realizado">No Realizado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subir Archivo (PDF, Word, Imagen)</label>
+                <input type="file" name="archivo" class="glass-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Observaciones</label>
+                <textarea name="observaciones" class="glass-input" style="height: 80px;" placeholder="Notas adicionales..."></textarea>
+            </div>
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalNuevoDoc')">Cancelar</button>
+                <button type="submit" class="glass-btn">Cargar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDITAR DOC -->
+<div class="vin-modal-overlay" id="modalEditarDoc">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-pen" style="color: var(--accent);"></i> Editar Documento</h3>
+        <form method="POST" id="formEditarDoc" enctype="multipart/form-data">
+            <div class="form-group">
+                <label class="form-label">Nombre del Formato *</label>
+                <input type="text" name="nombre_formato" id="edit_nombre_formato" class="glass-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Estado *</label>
+                <select name="estado" id="edit_estado" class="glass-select" required>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Entregado">Entregado</option>
+                    <option value="Recibido">Recibido</option>
+                    <option value="No Realizado">No Realizado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Actualizar Archivo (Opcional)</label>
+                <input type="file" name="archivo" class="glass-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Observaciones</label>
+                <textarea name="observaciones" id="edit_observaciones" class="glass-input" style="height: 80px;"></textarea>
+            </div>
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEditarDoc')">Cancelar</button>
+                <button type="submit" class="glass-btn">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ELIMINAR DOC -->
+<div class="vin-modal-overlay" id="modalEliminarDoc">
+    <div class="vin-modal" style="max-width: 400px; text-align: center;">
+        <h3 style="justify-content: center; color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Confirmar</h3>
+        <p>¿Estás seguro de que deseas eliminar el documento <strong id="delete_doc_nombre"></strong> del expediente?</p>
+        <form method="POST" id="formEliminarDoc">
+            <div class="vin-modal-footer" style="justify-content: center;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEliminarDoc')">Cancelar</button>
+                <button type="submit" class="glass-btn glass-btn-danger">Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Event listeners for close when clicking overlay
+document.querySelectorAll('.vin-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+
+function openEditDocModal(docId, nombre, estado, observaciones) {
+    document.getElementById('formEditarDoc').action = `/vinculacion/alumnos/expediente/{{ expediente.id }}/documento/${docId}/editar`;
+    document.getElementById('edit_nombre_formato').value = nombre;
+    document.getElementById('edit_estado').value = estado;
+    document.getElementById('edit_observaciones').value = observaciones;
+    openModal('modalEditarDoc');
+}
+
+function openDeleteDocModal(docId, nombre) {
+    document.getElementById('formEliminarDoc').action = `/vinculacion/alumnos/expediente/{{ expediente.id }}/documento/${docId}/eliminar`;
+    document.getElementById('delete_doc_nombre').innerText = nombre;
+    openModal('modalEliminarDoc');
+}
+
+// Escape key to close modals
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.vin-modal-overlay.active').forEach(o => closeModal(o.id));
+    }
+});
+</script>
+{% endblock %}

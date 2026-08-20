@@ -4,10 +4,72 @@
 {% block content %}
 <div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <h2>Expedientes - {{ modulo_label }}</h2>
-    {% if modulo_prefix in ('servicio', 'practicas') %}
-    <a href="{{ url_for(modulo_prefix ~ '.importar') }}" class="glass-btn">📥 Importar Excel</a>
-    {% endif %}
+    <div style="display: flex; gap: 10px;">
+        {% if modulo_prefix in ('servicio', 'practicas') %}
+        <a href="{{ url_for(modulo_prefix ~ '.importar') }}" class="glass-btn">📥 Importar Excel</a>
+        <button class="glass-btn glass-btn-outline" onclick="document.getElementById('modalExportar').style.display='flex'">📤 Exportar</button>
+        {% endif %}
+    </div>
 </div>
+
+<div id="modalExportar" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="glass-card" style="width: 100%; max-width: 400px;">
+        <h3 style="margin-bottom: 20px;">Exportar a Compartidos</h3>
+        <form action="{{ url_for(modulo_prefix ~ '.exportar_compartidos') }}" method="POST">
+            <!-- Filtros actuales -->
+            <input type="hidden" name="search" value="{{ search or '' }}">
+            <input type="hidden" name="carrera_filter" value="{{ carrera_filter or '' }}">
+            <input type="hidden" name="estado_filter" value="{{ estado_filter or '' }}">
+            <input type="hidden" name="sector_filter" value="{{ sector_filter or '' }}">
+            <input type="hidden" name="estatus_filter" value="{{ estatus_filter or '' }}">
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">Nombre del Reporte</label>
+                <input type="text" name="nombre_archivo" class="glass-input" value="Reporte_{{ modulo_label }}" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">Carpeta Destino (Existente)</label>
+                <select name="carpeta_id" class="glass-input" id="selectCarpeta">
+                    <option value="">-- Seleccionar Carpeta --</option>
+                    {% for c in carpetas_compartidas %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="text-align: center; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">- O -</div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label">Nueva Carpeta</label>
+                <input type="text" name="nueva_carpeta" class="glass-input" id="inputNuevaCarpeta" placeholder="Ej: Reportes 2025">
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="document.getElementById('modalExportar').style.display='none'">Cancelar</button>
+                <button type="submit" class="glass-btn">Exportar y Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    document.getElementById('selectCarpeta').addEventListener('change', function() {
+        if (this.value) {
+            document.getElementById('inputNuevaCarpeta').value = '';
+            document.getElementById('inputNuevaCarpeta').disabled = true;
+        } else {
+            document.getElementById('inputNuevaCarpeta').disabled = false;
+        }
+    });
+    document.getElementById('inputNuevaCarpeta').addEventListener('input', function() {
+        if (this.value.trim() !== '') {
+            document.getElementById('selectCarpeta').value = '';
+            document.getElementById('selectCarpeta').disabled = true;
+        } else {
+            document.getElementById('selectCarpeta').disabled = false;
+        }
+    });
+</script>
 
 <div class="glass-card" style="margin-bottom: 24px;">
     <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">

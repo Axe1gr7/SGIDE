@@ -73,6 +73,23 @@ class Alumno(db.Model):
             return f'{inicio}-{full(self.anio_egreso)}'
         return f'{inicio}'
 
+    @property
+    def servicio_completado(self):
+        """Retorna True si el alumno completó el Servicio Social (tiene al menos un documento Entregado o Recibido)."""
+        exp_s = self.expedientes.filter_by(tipo_modulo='s', is_deleted=False).first()
+        return exp_s and exp_s.documentos.filter(Documento.is_deleted == False, Documento.estado.in_(['Entregado', 'Recibido'])).first() is not None
+
+    @property
+    def practicas_completado(self):
+        """Retorna True si el alumno completó las Prácticas Profesionales (tiene al menos un documento Entregado o Recibido)."""
+        exp_p = self.expedientes.filter_by(tipo_modulo='p', is_deleted=False).first()
+        return exp_p and exp_p.documentos.filter(Documento.is_deleted == False, Documento.estado.in_(['Entregado', 'Recibido'])).first() is not None
+
+    @property
+    def puede_realizar_estancia(self):
+        """Retorna True si el alumno completó Servicio Social y Prácticas Profesionales."""
+        return bool(self.servicio_completado and self.practicas_completado)
+
     def __repr__(self):
         return f'<Alumno {self.nombre} [{self.expediente_base}]>'
 
@@ -94,6 +111,21 @@ class Dependencia(db.Model):
         return f'<Dependencia {self.nombre}>'
 
 
+class Universidad(db.Model):
+    __tablename__ = 'universidades'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    domicilio = db.Column(db.String(300), nullable=True)
+    contacto = db.Column(db.String(150), nullable=True)
+    telefono = db.Column(db.String(50), nullable=True)
+    correo = db.Column(db.String(120), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<Universidad {self.nombre}>'
+
+
 class Expediente(db.Model):
     __tablename__ = 'expedientes'
     id = db.Column(db.Integer, primary_key=True)
@@ -102,9 +134,12 @@ class Expediente(db.Model):
     clave_expediente = db.Column(db.String(30), unique=True, nullable=False)
     sector = db.Column(db.String(30), nullable=True)  # Dependencias Servicio Social: Municipal / Estatal / Salud
     dependencia_id = db.Column(db.Integer, db.ForeignKey('dependencias.id'), nullable=True)
+    universidad_id = db.Column(db.Integer, db.ForeignKey('universidades.id'), nullable=True)
+    periodo = db.Column(db.String(100), nullable=True)
     is_deleted = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     documentos = db.relationship('Documento', backref='expediente', lazy='dynamic')
+    universidad = db.relationship('Universidad', backref='expedientes')
 
     def __repr__(self):
         return f'<Expediente {self.clave_expediente}>'
@@ -168,13 +203,15 @@ class SubModuloVinculacion(db.Model):
 class ArchivoSubModulo(db.Model):
     __tablename__ = 'archivos_submodulo'
     id           = db.Column(db.Integer, primary_key=True)
-    submodulo_id = db.Column(db.Integer, db.ForeignKey('submodulos_vinculacion.id'), nullable=False)
+    modulo_id    = db.Column(db.Integer, db.ForeignKey('modulos_vinculacion.id'), nullable=True)
+    submodulo_id = db.Column(db.Integer, db.ForeignKey('submodulos_vinculacion.id'), nullable=True)
     nombre       = db.Column(db.String(200), nullable=False)
     descripcion  = db.Column(db.Text, nullable=True)
     ruta_archivo = db.Column(db.String(500), nullable=True)
     tipo_archivo = db.Column(db.String(50), nullable=True)   # pdf, docx, xlsx, …
     is_deleted   = db.Column(db.Boolean, default=False)
     created_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    modulo       = db.relationship('ModuloVinculacion', backref='archivos_raiz')
 
     def __repr__(self):
         return f'<ArchivoSubModulo {self.nombre}>'
@@ -412,3 +449,39 @@ class Practica(db.Model):
 
     def __repr__(self):
         return f'<Practica {self.no_constancia} — {self.nombre}>'
+# ── Módulo Compartidos ───────────────────────────────────────────────────────
+
+class CarpetaCompartida(db.Model):
+    __tablename__ = 'carpetas_compartidas'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_deleted = db.Column(db.Boolean, default=False)
+    icono = db.Column(db.String(50), default='fa-folder')
+    color = db.Column(db.String(20), default='#4f46e5')
+    
+    archivos = db.relationship('ArchivoCompartido', backref='carpeta', lazy='dynamic', cascade='all, delete-orphan')
+    creador = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<CarpetaCompartida {self.nombre}>'
+
+
+class ArchivoCompartido(db.Model):
+    __tablename__ = 'archivos_compartidos'
+    id = db.Column(db.Integer, primary_key=True)
+    carpeta_id = db.Column(db.Integer, db.ForeignKey('carpetas_compartidas.id'), nullable=False)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    ruta_archivo = db.Column(db.String(500), nullable=True)
+    tipo_archivo = db.Column(db.String(50), nullable=True)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    subidor = db.relationship('User', foreign_keys=[uploaded_by_id])
+
+    def __repr__(self):
+        return f'<ArchivoCompartido {self.nombre}>'

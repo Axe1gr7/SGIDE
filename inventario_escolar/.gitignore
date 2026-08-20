@@ -24,9 +24,9 @@ migrations/
 uploads/*
 !uploads/.gitkeep
 
-# Plantillas Word generadas
-templates_word/*
-!templates_word/.gitkeep
+# Plantillas Word generadas fuera de la aplicación
+/templates_word/*
+!/templates_word/.gitkeep
 
 # IDE
 .vscode/

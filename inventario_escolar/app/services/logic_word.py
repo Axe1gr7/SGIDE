@@ -1,4 +1,5 @@
 import os
+import subprocess
 from datetime import datetime
 from flask import current_app
 from docxtpl import DocxTemplate
@@ -6,7 +7,7 @@ from app.models import Alumno, Expediente
 from app.services.file_manager import generar_ruta_relativa_expediente
 
 
-def generar_documento_word(alumno_id, tipo_modulo):
+def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
     """
     Generates a Word document from a template for a specific student and module.
     tipo_modulo: 'p' (practicas), 's' (servicio), 'v' (vinculacion)
@@ -78,6 +79,38 @@ def generar_documento_word(alumno_id, tipo_modulo):
     doc.save(output_path)
 
     return output_path, filename
+
+
+def generar_documento_pdf(alumno_id, tipo_modulo, template_name=None):
+    """Renderiza una plantilla Word con datos reales y la convierte a PDF."""
+    docx_path, docx_filename = generar_documento_word(
+        alumno_id, tipo_modulo, template_name=template_name
+    )
+    output_dir = os.path.dirname(docx_path)
+    pdf_filename = f'{os.path.splitext(docx_filename)[0]}.pdf'
+    pdf_path = os.path.join(output_dir, pdf_filename)
+
+    try:
+        subprocess.run(
+            [
+                'libreoffice', '--headless', '--convert-to', 'pdf',
+                '--outdir', output_dir, docx_path,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError('El conversor LibreOffice no está instalado en el servidor.') from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or '').strip()
+        raise RuntimeError(f'No se pudo convertir el formato a PDF: {detail}') from exc
+
+    if not os.path.exists(pdf_path):
+        raise RuntimeError('LibreOffice no generó el archivo PDF esperado.')
+
+    return pdf_path, pdf_filename
 
 
 def listar_plantillas_word():

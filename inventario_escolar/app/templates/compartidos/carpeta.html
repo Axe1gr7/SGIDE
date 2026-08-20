@@ -1,0 +1,585 @@
+{% extends 'base.html' %}
+{% block title %}Carpeta: {{ carpeta.nombre }}{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --vin-blur: blur(20px) saturate(180%);
+  --vin-glass: rgba(255,255,255,0.18);
+  --vin-border: rgba(255,255,255,0.35);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --vin-radius: 20px;
+  --mod-color: #6366f1; /* Accent color for Compartidos */
+}
+[data-theme="dark"] {
+  --vin-glass: rgba(15,23,42,0.55);
+  --vin-border: rgba(255,255,255,0.12);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+/* Breadcrumb */
+.vin-breadcrumb { display:flex;align-items:center;gap:8px;font-size:0.9rem;color:var(--text-muted);margin-bottom:28px;flex-wrap:wrap; }
+.vin-breadcrumb a { color:var(--accent);text-decoration:none;font-weight:500; }
+.vin-breadcrumb a:hover { text-decoration:underline; }
+.vin-breadcrumb i.sep { font-size:0.65rem; }
+
+/* Sub Hero */
+.sub-hero {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: var(--vin-radius);
+  box-shadow: var(--vin-shadow);
+  padding: 28px 32px; margin-bottom: 32px;
+  position: relative; overflow: hidden;
+}
+.sub-hero::before {
+  content: ''; position: absolute;
+  top:-60%;right:-5%; width:260px;height:260px;
+  background: radial-gradient(circle, var(--mod-color) 0%, transparent 70%);
+  opacity: 0.1; pointer-events: none;
+}
+.sub-hero-inner { position:relative;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between; }
+.sub-hero-left  { display:flex;align-items:center;gap:16px; }
+.sub-hero-ico {
+  width:54px;height:54px;border-radius:15px;
+  background: linear-gradient(135deg, var(--mod-color), color-mix(in srgb,var(--mod-color) 60%,transparent));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;color:#fff;
+  box-shadow: 0 6px 20px color-mix(in srgb,var(--mod-color) 35%,transparent);
+  flex-shrink:0;
+}
+.sub-hero-text h2 { font-size:1.5rem;font-weight:800;letter-spacing:-0.3px;color:var(--text-primary);margin-bottom:3px; }
+.sub-hero-text p  { color:var(--text-muted);font-size:0.9rem; }
+
+/* Stats strip */
+.vin-stats { display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap; }
+.vin-stat-pill {
+  background: var(--vin-glass); backdrop-filter: var(--vin-blur); -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border); border-radius:50px; padding:10px 22px;
+  display:flex;align-items:center;gap:10px; font-size:0.9rem;font-weight:600;
+  color:var(--text-primary); box-shadow:var(--vin-shadow);
+}
+.vin-stat-pill i { color:var(--mod-color); }
+.vin-stat-pill span { color:var(--text-muted);font-weight:400;margin-left:2px; }
+
+/* File list */
+.file-list { display:flex;flex-direction:column;gap:12px; }
+.file-card {
+  background: var(--vin-glass); backdrop-filter: var(--vin-blur); -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border); border-radius: 14px;
+  box-shadow: var(--vin-shadow); padding:18px 24px;
+  display:flex;align-items:center;gap:16px;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+.file-card:hover { transform:translateY(-2px);box-shadow:var(--vin-hover-shadow); }
+.file-type-icon {
+  width:48px;height:48px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;color:#fff;flex-shrink:0;
+}
+.type-pdf   { background:linear-gradient(135deg,#ef4444,#dc2626); }
+.type-word  { background:linear-gradient(135deg,#3b82f6,#2563eb); }
+.type-excel { background:linear-gradient(135deg,#10b981,#059669); }
+.type-image { background:linear-gradient(135deg,#f59e0b,#d97706); }
+.type-zip   { background:linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.type-text  { background:linear-gradient(135deg,#64748b,#475569); }
+.type-file  { background:linear-gradient(135deg,#94a3b8,#64748b); }
+
+.file-info { flex:1;min-width:0; }
+.file-name { font-size:1rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.file-desc { font-size:0.82rem;color:var(--text-muted);margin-top:2px; }
+.file-meta { font-size:0.78rem;color:var(--text-muted);margin-top:4px; }
+
+.file-actions { display:flex;gap:8px;flex-shrink:0; }
+.file-btn {
+  width:36px;height:36px;border-radius:10px;border:1px solid var(--vin-border);
+  background:var(--vin-glass);display:flex;align-items:center;justify-content:center;
+  font-size:0.9rem;cursor:pointer;transition:0.2s;color:var(--text-muted);
+  text-decoration:none;
+}
+.file-btn:hover { background:var(--bg-glass);color:var(--accent); }
+.file-btn.del:hover { color:var(--danger); }
+.file-btn.preview:hover { color:#a78bfa; }
+.file-btn.rename:hover { color:#34d399; }
+.file-btn:hover { filter:none; }
+
+/* ── Preview Lightbox ─────────────────────────────── */
+.preview-overlay {
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(16px) saturate(160%);
+  z-index:2000;
+  display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+.preview-overlay.active { opacity:1;pointer-events:auto; }
+
+.preview-topbar {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 24px;
+  background:var(--vin-glass);
+  backdrop-filter:var(--vin-blur);
+  border-bottom:1px solid var(--vin-border);
+  flex-shrink:0;
+}
+.preview-title {
+  display:flex;align-items:center;gap:12px;
+  font-weight:700;font-size:1rem;color:#fff;
+  max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.preview-title i { opacity:0.7;font-size:1.1rem; }
+.preview-bar-actions { display:flex;gap:10px; }
+.preview-bar-btn {
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.1);color:#fff;
+  font-size:0.85rem;font-weight:600;cursor:pointer;transition:0.2s;
+  text-decoration:none;
+}
+.preview-bar-btn:hover { background:rgba(255,255,255,0.2);color:#fff; }
+.preview-bar-btn.close-btn { color:#fca5a5; border-color:rgba(252,165,165,0.3); }
+.preview-bar-btn.close-btn:hover { background:rgba(239,68,68,0.2); }
+
+.preview-body {
+  flex:1;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.preview-body iframe {
+  width:100%;height:100%;border:none;border-radius:12px;
+  background:#fff;
+  box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  transform:scale(0.95);transition:transform 0.4s cubic-bezier(.22,1,.36,1);
+}
+.preview-overlay.active .preview-body iframe { transform:scale(1); }
+
+.preview-body img {
+  max-width:100%;max-height:100%;object-fit:contain;
+  border-radius:12px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  transform:scale(0.92);transition:transform 0.4s cubic-bezier(.22,1,.36,1);
+}
+.preview-overlay.active .preview-body img { transform:scale(1); }
+
+.preview-unsupported {
+  text-align:center;color:rgba(255,255,255,0.6);
+  display:flex;flex-direction:column;align-items:center;gap:16px;
+}
+.preview-unsupported i { font-size:5rem;opacity:0.3; }
+.preview-unsupported h3 { font-size:1.2rem;color:rgba(255,255,255,0.8); }
+.preview-unsupported p { font-size:0.9rem;max-width:360px; }
+
+/* Upload zone */
+.upload-zone {
+  border:2px dashed var(--glass-border);border-radius:16px;
+  padding:40px 24px;text-align:center;
+  background:transparent;cursor:pointer;transition:0.3s;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:var(--text-muted);
+}
+.upload-zone:hover,.upload-zone.drag-over {
+  border-color:var(--mod-color);
+  background:rgba(79,70,229,0.03);
+  color:var(--mod-color);
+}
+.upload-zone i { font-size:2.5rem;opacity:0.4;transition:0.3s; }
+.upload-zone:hover i { opacity:0.9;transform:translateY(-4px); }
+.upload-zone p { font-size:0.9rem; }
+.upload-zone small { font-size:0.78rem;opacity:0.6; }
+
+/* Modals */
+.vin-modal-overlay {
+  position:fixed;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(10px);
+  z-index:1000;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:0.3s;
+}
+.vin-modal-overlay.active { opacity:1;pointer-events:auto; }
+.vin-modal {
+  background: var(--vin-glass); backdrop-filter: var(--vin-blur); -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border); border-radius:24px; box-shadow:var(--vin-hover-shadow);
+  width:90%;max-width:500px;padding:32px;
+  transform:translateY(30px) scale(0.96);transition:transform 0.35s cubic-bezier(.22,1,.36,1);
+}
+.vin-modal-overlay.active .vin-modal { transform:translateY(0) scale(1); }
+.vin-modal h3 { font-size:1.15rem;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px; }
+.vin-modal h3 i { color:var(--mod-color); }
+.vin-form-group { margin-bottom:16px; }
+.vin-form-group label { display:block;margin-bottom:5px;font-weight:600;font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em; }
+.vin-modal-footer { display:flex;justify-content:flex-end;gap:10px;margin-top:6px; }
+
+/* Progress */
+.upload-progress { display:none;margin-top:12px; }
+.progress-bar { width:100%;height:6px;background:var(--glass-border);border-radius:50px;overflow:hidden; }
+.progress-fill { height:100%;width:0;background:var(--accent-gradient);border-radius:50px;transition:width 0.3s; }
+
+@media(max-width:600px){.file-card{flex-wrap:wrap;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Breadcrumb ─────────────────────────────────────────────────────── -->
+<div class="vin-breadcrumb">
+  <a href="{{ url_for('compartidos.index') }}"><i class="fa-solid fa-folder"></i> Compartidos</a>
+  <i class="fa-solid fa-chevron-right sep"></i>
+  <span>{{ carpeta.nombre }}</span>
+</div>
+
+<!-- ── Sub-hero ───────────────────────────────────────────────────────── -->
+<div class="sub-hero">
+  <div class="sub-hero-inner">
+    <div class="sub-hero-left">
+      <div class="sub-hero-ico"><i class="fa-solid fa-folder-open"></i></div>
+      <div class="sub-hero-text">
+        <h2>{{ carpeta.nombre }}</h2>
+        <p>{{ carpeta.descripcion or 'Sin descripción' }}</p>
+      </div>
+    </div>
+    <button class="glass-btn glass-btn-small" id="btnSubirArchivo">
+      <i class="fa-solid fa-upload"></i> Subir Archivo
+    </button>
+  </div>
+</div>
+
+<!-- ── Stats ──────────────────────────────────────────────────────────── -->
+<div class="vin-stats">
+  <div class="vin-stat-pill">
+    <i class="fa-solid fa-file"></i>
+    <strong>{{ archivos|rejectattr('is_deleted')|list|length }}</strong>
+    <span>Archivo{{ 's' if (archivos|rejectattr('is_deleted')|list|length) != 1 else '' }}</span>
+  </div>
+</div>
+
+<!-- ── File List ──────────────────────────────────────────────────────── -->
+<div class="file-list">
+  {% set type_icons = {
+    'pdf':   ('fa-file-pdf',   'type-pdf'),
+    'docx':  ('fa-file-word',  'type-word'),
+    'doc':   ('fa-file-word',  'type-word'),
+    'xlsx':  ('fa-file-excel', 'type-excel'),
+    'xls':   ('fa-file-excel', 'type-excel'),
+    'png':   ('fa-image',      'type-image'),
+    'jpg':   ('fa-image',      'type-image'),
+    'jpeg':  ('fa-image',      'type-image'),
+    'zip':   ('fa-file-zipper','type-zip'),
+    'rar':   ('fa-file-zipper','type-zip'),
+    'txt':   ('fa-file-lines', 'type-text'),
+    'file':  ('fa-file',       'type-file'),
+  } %}
+  
+  {% set active_archivos = archivos|rejectattr('is_deleted')|list %}
+  
+  {% for a in active_archivos %}
+  {% set ext = a.tipo_archivo|lower if a.tipo_archivo else 'file' %}
+  {% set ti = type_icons.get(ext, ('fa-file','type-file')) %}
+  
+  <div class="file-card">
+    <div class="file-type-icon {{ ti[1] }}">
+      <i class="fa-solid {{ ti[0] }}"></i>
+    </div>
+    <div class="file-info">
+      <div class="file-name">{{ a.nombre }}</div>
+      {% if a.descripcion %}
+      <div class="file-desc">{{ a.descripcion }}</div>
+      {% endif %}
+      <div class="file-meta">
+        <i class="fa-regular fa-clock"></i>
+        {{ a.created_at.strftime('%d %b %Y, %H:%M') if a.created_at else '—' }}
+        · <span>Subido por: {{ a.subidor.username if a.subidor else 'Sistema' }}</span>
+        {% if a.tipo_archivo %}· <span style="text-transform:uppercase;font-weight:600;">{{ a.tipo_archivo }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="file-actions">
+      {% if a.ruta_archivo %}
+      <!-- Preview -->
+      <button class="file-btn preview" title="Vista previa"
+              onclick="openPreview(
+                '{{ a.nombre|e }}',
+                '{{ ext }}',
+                '{{ url_for('compartidos.preview_archivo', archivo_id=a.id) }}',
+                '{{ url_for('compartidos.descargar_archivo', archivo_id=a.id) }}'
+              )">
+        <i class="fa-solid fa-eye"></i>
+      </button>
+      <!-- Descargar -->
+      <a class="file-btn"
+         href="{{ url_for('compartidos.descargar_archivo', archivo_id=a.id) }}"
+         title="Descargar">
+        <i class="fa-solid fa-download"></i>
+      </a>
+      {% endif %}
+      
+      {% if current_user.role.nombre == 'Super Admin' or (a.subidor and a.subidor.id == current_user.id) %}
+      <!-- Renombrar -->
+      <button class="file-btn rename" title="Renombrar"
+              onclick="openRename(
+                {{ a.id }},
+                '{{ a.nombre|e }}',
+                '{{ a.descripcion|e if a.descripcion else '' }}'
+              )">
+        <i class="fa-solid fa-pencil"></i>
+      </button>
+      <!-- Eliminar -->
+      <form method="POST"
+            action="{{ url_for('compartidos.eliminar_archivo', archivo_id=a.id) }}"
+            onsubmit="return confirm('¿Eliminar «{{ a.nombre|e }}»?')">
+        <button type="submit" class="file-btn del" title="Eliminar">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="upload-zone" id="mainDropzone" onclick="document.getElementById('btnSubirArchivo').click()">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <p>Aún no hay archivos. Sube o registra el primero.</p>
+    <small>PDF, Word, Excel, imágenes, ZIP…</small>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ══════════ MODAL: SUBIR ARCHIVO ════════════ -->
+<div class="vin-modal-overlay" id="modalSubir">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-upload"></i> Subir / Registrar Archivo</h3>
+    <form method="POST"
+          action="{{ url_for('compartidos.subir_archivo', carpeta_id=carpeta.id) }}"
+          enctype="multipart/form-data" id="formSubir">
+      <div class="vin-form-group">
+        <label>Nombre del archivo</label>
+        <input type="text" name="nombre" id="inputNombre" class="glass-input"
+               placeholder="Se autocompleta al seleccionar archivo">
+      </div>
+      <div class="vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" class="glass-textarea" rows="2"
+                  placeholder="Notas adicionales…"></textarea>
+      </div>
+      <div class="vin-form-group">
+        <label>Archivo <span style="color:var(--danger)">*</span></label>
+        <div class="upload-zone" id="dropZone">
+          <i class="fa-solid fa-cloud-arrow-up" id="dropIcon"></i>
+          <p id="dropText">Arrastra aquí o haz clic para seleccionar</p>
+          <small>Cualquier tipo de archivo está permitido.</small>
+        </div>
+        <input type="file" name="archivo" id="fileInput" style="display:none" required>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalSubir')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Subir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: RENOMBRAR ARCHIVO ════════════ -->
+<div class="vin-modal-overlay" id="modalRename">
+  <div class="vin-modal" style="max-width:460px;">
+    <h3><i class="fa-solid fa-pencil"></i> Editar Archivo</h3>
+    <form method="POST" id="formRename">
+      <div class="vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" id="renameNombre" class="glass-input" required
+               placeholder="Nombre del archivo…">
+      </div>
+      <div class="vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" id="renameDesc" class="glass-textarea" rows="2"
+                  placeholder="Notas adicionales…"></textarea>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalRename')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ LIGHTBOX: VISTA PREVIA ════════════ -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-topbar">
+    <div class="preview-title">
+      <i class="fa-solid fa-eye" id="previewTitleIcon"></i>
+      <span id="previewTitleText">Vista previa</span>
+    </div>
+    <div class="preview-bar-actions">
+      <a class="preview-bar-btn" id="previewDownloadBtn" href="#" download>
+        <i class="fa-solid fa-download"></i> Descargar
+      </a>
+      <button class="preview-bar-btn close-btn" onclick="closePreview()">
+        <i class="fa-solid fa-xmark"></i> Cerrar
+      </button>
+    </div>
+  </div>
+  <div class="preview-body" id="previewBody">
+    <!-- Contenido inyectado dinámicamente -->
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ────────────────────────────────────────────────
+   Modal helpers
+──────────────────────────────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('active'); document.body.style.overflow='hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow=''; }
+
+document.querySelectorAll('.vin-modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target===o) closeModal(o.id); });
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') {
+    document.querySelectorAll('.vin-modal-overlay.active').forEach(o=>closeModal(o.id));
+    closePreview();
+  }
+});
+
+document.getElementById('btnSubirArchivo').addEventListener('click', () => openModal('modalSubir'));
+
+/* ────────────────────────────────────────────────
+   Dropzone
+──────────────────────────────────────────────── */
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const dropText    = document.getElementById('dropText');
+const dropIcon    = document.getElementById('dropIcon');
+const inputNombre = document.getElementById('inputNombre');
+
+if (dropZone) {
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('drag-over');
+      fileInput.files = e.dataTransfer.files;
+      handleFile(e.dataTransfer.files[0]);
+    });
+}
+if (fileInput) {
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+}
+
+function handleFile(f) {
+  if (!f) return;
+  dropIcon.className = 'fa-solid fa-file-circle-check';
+  dropText.textContent = f.name;
+  if (!inputNombre.value) inputNombre.value = f.name.replace(/\.[^.]+$/, '');
+}
+
+document.getElementById('formSubir').addEventListener('submit', () => {
+  const prog = document.getElementById('uploadProgress');
+  const fill = document.getElementById('progressFill');
+  prog.style.display = 'block';
+  let w = 0;
+  const iv = setInterval(() => { w = Math.min(w + Math.random()*15, 90); fill.style.width = w + '%'; }, 200);
+  setTimeout(() => { clearInterval(iv); fill.style.width = '100%'; }, 3000);
+});
+
+/* ────────────────────────────────────────────────
+   Renombrar / Editar archivo
+──────────────────────────────────────────────── */
+function openRename(aid, nombre, desc) {
+  document.getElementById('renameNombre').value = nombre;
+  document.getElementById('renameDesc').value   = desc || '';
+  document.getElementById('formRename').action  = `/compartidos/archivo/${aid}/editar`;
+  openModal('modalRename');
+}
+
+/* ────────────────────────────────────────────────
+   Vista previa (Lightbox)
+──────────────────────────────────────────────── */
+const previewOverlay = document.getElementById('previewOverlay');
+const previewBody    = document.getElementById('previewBody');
+const previewTitle   = document.getElementById('previewTitleText');
+const previewIcon    = document.getElementById('previewTitleIcon');
+const previewDlBtn   = document.getElementById('previewDownloadBtn');
+
+const TYPE_ICONS = {
+  pdf:   'fa-file-pdf',
+  image: 'fa-image',
+  png:   'fa-image',
+  jpg:   'fa-image',
+  jpeg:  'fa-image',
+  word:  'fa-file-word',
+  docx:  'fa-file-word',
+  doc:   'fa-file-word',
+  excel: 'fa-file-excel',
+  xlsx:  'fa-file-excel',
+  xls:   'fa-file-excel',
+  zip:   'fa-file-zipper',
+  rar:   'fa-file-zipper',
+  text:  'fa-file-lines',
+  txt:   'fa-file-lines',
+  file:  'fa-file',
+};
+
+// Extensiones de imagenes compatibles con browser
+const IMG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+
+function openPreview(nombre, tipo, previewUrl, downloadUrl) {
+  previewTitle.textContent = nombre;
+  previewIcon.className = 'fa-solid ' + (TYPE_ICONS[tipo] || 'fa-file');
+  previewDlBtn.href = downloadUrl;
+
+  // Limpiar contenido anterior
+  previewBody.innerHTML = '';
+
+  if (tipo === 'image' || IMG_EXTS.includes(tipo)) {
+    const img = document.createElement('img');
+    img.src = previewUrl;
+    img.alt = nombre;
+    previewBody.appendChild(img);
+
+  } else if (tipo === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = previewUrl + '#toolbar=1&navpanes=0&scrollbar=1';
+    iframe.title = nombre;
+    iframe.setAttribute('loading', 'lazy');
+    previewBody.appendChild(iframe);
+
+  } else if (tipo === 'text' || tipo === 'txt') {
+    // Cargar contenido del txt vía fetch
+    const pre = document.createElement('pre');
+    pre.style.cssText = 'background:rgba(0,0,0,0.4);color:#e2e8f0;padding:32px;border-radius:12px;'
+                      + 'overflow:auto;max-height:100%;font-size:0.9rem;line-height:1.6;max-width:860px;width:100%;';
+    pre.textContent = 'Cargando…';
+    previewBody.appendChild(pre);
+    fetch(previewUrl).then(r => r.text()).then(t => { pre.textContent = t; }).catch(() => { pre.textContent = '(No se pudo cargar el contenido)'; });
+
+  } else {
+    // Tipo no previsualizable
+    previewBody.innerHTML = `
+      <div class="preview-unsupported">
+        <i class="fa-solid ${TYPE_ICONS[tipo] || 'fa-file'}"></i>
+        <h3>Vista previa no disponible</h3>
+        <p>Este tipo de archivo (${tipo || 'desconocido'}) no puede visualizarse en el navegador.<br>Puedes descargarlo para abrirlo.</p>
+        <a class="preview-bar-btn" href="${downloadUrl}" download style="margin-top:8px;">
+          <i class="fa-solid fa-download"></i> Descargar
+        </a>
+      </div>`;
+  }
+
+  previewOverlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+  previewOverlay.classList.remove('active');
+  document.body.style.overflow = '';
+  // Liberar iframe/img para parar streams
+  setTimeout(() => { previewBody.innerHTML = ''; }, 350);
+}
+
+previewOverlay.addEventListener('click', e => {
+  if (e.target === previewOverlay) closePreview();
+});
+</script>
+{% endblock %}
