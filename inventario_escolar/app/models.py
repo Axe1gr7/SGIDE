@@ -203,13 +203,53 @@ class SubModuloVinculacion(db.Model):
 class ArchivoSubModulo(db.Model):
     __tablename__ = 'archivos_submodulo'
     id           = db.Column(db.Integer, primary_key=True)
-    submodulo_id = db.Column(db.Integer, db.ForeignKey('submodulos_vinculacion.id'), nullable=False)
+    modulo_id    = db.Column(db.Integer, db.ForeignKey('modulos_vinculacion.id'), nullable=True)
+    submodulo_id = db.Column(db.Integer, db.ForeignKey('submodulos_vinculacion.id'), nullable=True)
     nombre       = db.Column(db.String(200), nullable=False)
     descripcion  = db.Column(db.Text, nullable=True)
     ruta_archivo = db.Column(db.String(500), nullable=True)
     tipo_archivo = db.Column(db.String(50), nullable=True)   # pdf, docx, xlsx, …
     is_deleted   = db.Column(db.Boolean, default=False)
     created_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    modulo       = db.relationship('ModuloVinculacion', backref='archivos_raiz')
 
     def __repr__(self):
         return f'<ArchivoSubModulo {self.nombre}>'
+
+
+# ── Módulo Compartidos ───────────────────────────────────────────────────────
+
+class CarpetaCompartida(db.Model):
+    __tablename__ = 'carpetas_compartidas'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_deleted = db.Column(db.Boolean, default=False)
+    icono = db.Column(db.String(50), default='fa-folder')
+    color = db.Column(db.String(20), default='#4f46e5')
+    
+    archivos = db.relationship('ArchivoCompartido', backref='carpeta', lazy='dynamic', cascade='all, delete-orphan')
+    creador = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<CarpetaCompartida {self.nombre}>'
+
+
+class ArchivoCompartido(db.Model):
+    __tablename__ = 'archivos_compartidos'
+    id = db.Column(db.Integer, primary_key=True)
+    carpeta_id = db.Column(db.Integer, db.ForeignKey('carpetas_compartidas.id'), nullable=False)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    ruta_archivo = db.Column(db.String(500), nullable=True)
+    tipo_archivo = db.Column(db.String(50), nullable=True)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_deleted = db.Column(db.Boolean, default=False)
+    
+    subidor = db.relationship('User', foreign_keys=[uploaded_by_id])
+
+    def __repr__(self):
+        return f'<ArchivoCompartido {self.nombre}>'

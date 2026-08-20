@@ -13,7 +13,13 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
 
     # User loader para Flask-Login
-    from app.models import User
+    from app.models import User, ModuloVinculacion, CarpetaCompartida
+
+    @app.context_processor
+    def inject_global_vars():
+        modulos = ModuloVinculacion.query.filter_by(is_deleted=False).order_by(ModuloVinculacion.orden).all()
+        carpetas_compartidas = CarpetaCompartida.query.filter_by(is_deleted=False).order_by(CarpetaCompartida.nombre).all()
+        return dict(modulos_vinculacion=modulos, carpetas_compartidas=carpetas_compartidas)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -34,6 +40,7 @@ def create_app(config_class=Config):
     from app.blueprints.servicio import servicio_bp
     from app.blueprints.vinculacion import vinculacion_bp
     from app.blueprints.dependencias import dependencias_bp
+    from app.blueprints.compartidos import compartidos_bp
     from app.blueprints.plantillas import plantillas_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -43,6 +50,7 @@ def create_app(config_class=Config):
     app.register_blueprint(servicio_bp, url_prefix='/servicio')
     app.register_blueprint(vinculacion_bp, url_prefix='/vinculacion')
     app.register_blueprint(dependencias_bp, url_prefix='/dependencias')
+    app.register_blueprint(compartidos_bp, url_prefix='/compartidos')
     app.register_blueprint(plantillas_bp, url_prefix='/plantillas')
 
     return app

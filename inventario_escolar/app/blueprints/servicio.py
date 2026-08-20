@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, abort
-from flask_login import login_required
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Expediente, Documento, Carrera, Alumno, Dependencia
@@ -9,6 +9,7 @@ from app.services.logic_word import generar_documento_pdf, generar_documento_wor
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_excel import procesar_excel
 from app.services.logic_zip import procesar_zip_pdfs
+from app.models import CarpetaCompartida, ArchivoCompartido
 
 servicio_bp = Blueprint('servicio', __name__)
 
@@ -58,6 +59,76 @@ def lista():
                            modulo_label=MODULO_LABEL,
                            modulo_tipo=MODULO_TIPO,
                            modulo_prefix=MODULO_PREFIX)
+
+@servicio_bp.route('/exportar-compartidos', methods=['POST'])
+def exportar_compartidos():
+    import pandas as pd
+    from datetime import datetime
+    
+    carpeta_id = request.form.get('carpeta_id')
+    nueva_carpeta = request.form.get('nueva_carpeta')
+    nombre_archivo = request.form.get('nombre_archivo', 'Reporte_Servicio')
+    
+    if nueva_carpeta:
+        carpeta = CarpetaCompartida(nombre=nueva_carpeta, created_by_id=current_user.id)
+        db.session.add(carpeta)
+        db.session.commit()
+        carpeta_id = carpeta.id
+    elif carpeta_id:
+        carpeta = active_query(CarpetaCompartida).filter_by(id=carpeta_id).first_or_404()
+    else:
+        flash('Debe seleccionar o crear una carpeta.', 'danger')
+        return redirect(url_for(f'{MODULO_PREFIX}.lista'))
+
+    carrera_filter = request.form.get('carrera_filter')
+    search = request.form.get('search')
+    estado_filter = request.form.get('estado_filter')
+    sector_filter = request.form.get('sector_filter')
+
+    query = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).join(Alumno)
+    if carrera_filter: query = query.filter(Alumno.carrera_id == carrera_filter)
+    if search: query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
+    if estado_filter: query = query.join(Documento).filter(Documento.estado == estado_filter).distinct()
+    if sector_filter: query = query.filter(Expediente.sector == sector_filter)
+
+    data = []
+    for e in query.all():
+        data.append({
+            'Clave Expediente': e.clave_expediente,
+            'Alumno': e.alumno.nombre,
+            'Matrícula': e.alumno.matricula,
+            'Carrera': e.alumno.carrera.nombre if e.alumno.carrera else '',
+            'Generación': e.alumno.generacion_completa,
+            'Estatus': e.alumno.estatus,
+            'Sector': e.sector or '-',
+            'Total Docs': e.documentos.filter_by(is_deleted=False).count(),
+            'Docs Entregados': e.documentos.filter_by(is_deleted=False, estado='Entregado').count()
+        })
+        
+    df = pd.DataFrame(data)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{nombre_archivo}_{timestamp}.xlsx"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'compartidos', str(carpeta_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    ruta_absoluta = os.path.join(upload_dir, filename)
+    
+    df.to_excel(ruta_absoluta, index=False)
+    
+    ruta_relativa = os.path.join('compartidos', str(carpeta_id), filename)
+    
+    nuevo_archivo = ArchivoCompartido(
+        carpeta_id=carpeta_id,
+        nombre=nombre_archivo,
+        ruta_archivo=ruta_relativa,
+        tipo_archivo='xlsx',
+        uploaded_by_id=current_user.id
+    )
+    db.session.add(nuevo_archivo)
+    db.session.commit()
+    
+    flash(f'Reporte guardado en Compartidos -> {carpeta.nombre}', 'success')
+    return redirect(url_for(f'{MODULO_PREFIX}.lista'))
 
 @servicio_bp.route('/<int:id>')
 def detalle(id):

@@ -9,7 +9,7 @@ app = create_app()
 
 @app.cli.command('seed-db')
 def seed_db():
-    """Limpia todos los datos y puebla la base de datos con datos de ejemplo."""
+    """Crea datos de ejemplo solo cuando la base de datos está vacía."""
     # 0. ASEGURAR QUE LAS TABLAS EXISTAN
     click.echo('🔨 Creando tablas en la base de datos si no existen...')
     db.create_all()
@@ -19,11 +19,18 @@ def seed_db():
     try:
         db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS universidad_id INTEGER REFERENCES universidades(id) ON DELETE SET NULL"))
         db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS periodo VARCHAR(100)"))
+        db.session.execute(db.text("ALTER TABLE archivos_submodulo ADD COLUMN IF NOT EXISTS modulo_id INTEGER REFERENCES modulos_vinculacion(id) ON DELETE CASCADE"))
+        db.session.execute(db.text("ALTER TABLE archivos_submodulo ALTER COLUMN submodulo_id DROP NOT NULL"))
         db.session.commit()
         click.echo('✅ Columnas verificadas.')
     except Exception as e:
         db.session.rollback()
         click.echo(f'⚠️ Error al alterar la tabla expedientes: {e}')
+
+    # El comando se ejecuta al iniciar Docker; nunca debe resetear datos reales.
+    if db.session.query(User.id).first() is not None:
+        click.echo('✅ Base de datos existente detectada; se conservan todos los datos.')
+        return
     
     # --- 1. BORRAR TODOS LOS DATOS EXISTENTES ---
     # Borrar en orden inverso de dependencias (FK)

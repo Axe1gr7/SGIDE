@@ -56,6 +56,7 @@
         <a href="{{ url_for('vinculacion.inicio') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al Inicio</a>
         <h2 style="margin-top: 5px;">Consulta Global de Alumnos</h2>
     </div>
+    <button class="glass-btn glass-btn-outline" onclick="openModal('modalExportarAlumnos')">📤 Exportar a Compartidos</button>
 </div>
 
 <!-- Filtros -->
@@ -219,6 +220,47 @@
     </div>
 </div>
 
+<!-- MODAL EXPORTAR A COMPARTIDOS -->
+<div class="vin-modal-overlay" id="modalExportarAlumnos">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-file-export" style="color: var(--accent);"></i> Exportar a Compartidos</h3>
+        <form method="POST" action="{{ url_for('vinculacion.exportar_compartidos') }}">
+            <!-- Filtros actuales -->
+            <input type="hidden" name="search" value="{{ search or '' }}">
+            <input type="hidden" name="carrera_filter" value="{{ carrera_filter or '' }}">
+            <input type="hidden" name="estatus_filter" value="{{ estatus_filter or '' }}">
+            <input type="hidden" name="aptos_filter" value="{{ '1' if aptos_filter else '' }}">
+            
+            <div class="form-group">
+                <label class="form-label">Nombre del Reporte</label>
+                <input type="text" name="nombre_archivo" class="glass-input" value="Reporte_Alumnos_Vinculacion" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Carpeta Destino (Existente)</label>
+                <select name="carpeta_id" class="glass-select" id="selCarpetaExp">
+                    <option value="">-- Seleccionar Carpeta --</option>
+                    {% for c in carpetas_compartidas %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="text-align: center; font-size: 0.9rem; color: var(--text-muted); margin: 10px 0;">- O -</div>
+            
+            <div class="form-group">
+                <label class="form-label">Crear Nueva Carpeta</label>
+                <input type="text" name="nueva_carpeta" class="glass-input" id="inputNuevaCarpetaExp" placeholder="Ej: Reportes 2025">
+            </div>
+            
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalExportarAlumnos')">Cancelar</button>
+                <button type="submit" class="glass-btn">Exportar y Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -249,5 +291,21 @@ document.addEventListener('keydown', (e) => {
         document.querySelectorAll('.vin-modal-overlay.active').forEach(o => closeModal(o.id));
     }
 });
+
+// Export modal logic
+var selCarpetaExp = document.getElementById('selCarpetaExp');
+var inputNuevaCarpetaExp = document.getElementById('inputNuevaCarpetaExp');
+if (selCarpetaExp) {
+    selCarpetaExp.addEventListener('change', function() {
+        if (this.value) { inputNuevaCarpetaExp.value = ''; inputNuevaCarpetaExp.disabled = true; }
+        else { inputNuevaCarpetaExp.disabled = false; }
+    });
+}
+if (inputNuevaCarpetaExp) {
+    inputNuevaCarpetaExp.addEventListener('input', function() {
+        if (this.value.trim() !== '') { selCarpetaExp.value = ''; selCarpetaExp.disabled = true; }
+        else { selCarpetaExp.disabled = false; }
+    });
+}
 </script>
 {% endblock %}

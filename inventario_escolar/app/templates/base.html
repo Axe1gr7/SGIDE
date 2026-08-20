@@ -41,9 +41,11 @@
             <li><a href="{{ url_for('vinculacion.inicio') }}" class="sidebar-link"><i class="fa-solid fa-link"></i> Vinculación</a></li>
             {% endif %}
 
-            {% if current_user.role.nombre in ['Super Admin', 'Practicas', 'Servicio'] %}
-            <li><a href="{{ url_for('dependencias.lista') }}" class="sidebar-link"><i class="fa-solid fa-building"></i> Dependencias / Lugares</a></li>
+            {% if current_user.role.nombre in ['Super Admin', 'Practicas', 'Servicio', 'Vinculacion'] %}
+            <li><a href="{{ url_for('dependencias.lista') }}" class="sidebar-link"><i class="fa-solid fa-building"></i> Dep. y Univ.</a></li>
             {% endif %}
+            
+            <li><a href="{{ url_for('compartidos.index') }}" class="sidebar-link"><i class="fa-solid fa-folder-tree"></i> Compartidos</a></li>
 
             {% if current_user.role.nombre == 'Super Admin' %}
             <li><a href="{{ url_for('plantillas.lista') }}" class="sidebar-link"><i class="fa-solid fa-file-word"></i> Plantillas Word</a></li>

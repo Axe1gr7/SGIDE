@@ -187,6 +187,25 @@
 .sub-add-card:hover { border-color: var(--mod-color); color: var(--mod-color); background: rgba(0,0,0,0.02); }
 .sub-add-card:hover i { opacity: 1; transform: scale(1.1); }
 
+/* ── Archivos de la carpeta principal ─────────────────── */
+.root-files {
+  margin: 28px 0 32px;
+  padding: 22px;
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: 16px;
+  box-shadow: var(--vin-shadow);
+}
+.root-files-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
+.root-files-head h3 { margin:0; font-size:1.05rem; color:var(--text-primary); }
+.root-files-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.root-file-row { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--vin-border); }
+.root-file-row i { color:var(--mod-color); width:24px; text-align:center; }
+.root-file-name { flex:1; min-width:0; color:var(--text-primary); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.root-file-row a { color:var(--accent); text-decoration:none; }
+.root-empty { color:var(--text-muted); font-size:.88rem; }
+
 /* ── Modal ─────────────────────────────────────────────── */
 .vin-modal-overlay {
   position: fixed; inset: 0;
@@ -271,6 +290,32 @@
   </div>
 </div>
 
+<!-- ── Archivos de la carpeta principal ───────────────────────────────── -->
+<section class="root-files">
+  <div class="root-files-head">
+    <h3><i class="fa-solid fa-folder-open" style="color:var(--mod-color);"></i> Archivos en {{ modulo.nombre }}</h3>
+    <div class="root-files-actions">
+      <button class="glass-btn glass-btn-outline glass-btn-small" id="btnNuevaCarpeta">
+        <i class="fa-solid fa-folder-plus"></i> Nueva carpeta
+      </button>
+      <button class="glass-btn glass-btn-small" id="btnSubirRaiz">
+        <i class="fa-solid fa-upload"></i> Cargar archivo
+      </button>
+    </div>
+  </div>
+  {% for a in archivos_raiz %}
+  <div class="root-file-row">
+    <i class="fa-solid fa-file"></i>
+    <span class="root-file-name" title="{{ a.nombre }}">{{ a.nombre }}</span>
+    <a href="{{ url_for('vinculacion.descargar_archivo_raiz', id=modulo.id, aid=a.id) }}" title="Descargar">
+      <i class="fa-solid fa-download"></i>
+    </a>
+  </div>
+  {% else %}
+  <div class="root-empty">No hay archivos en la carpeta principal.</div>
+  {% endfor %}
+</section>
+
 <!-- ── Sub-módulos Grid ───────────────────────────────────────────────────── -->
 <div class="sub-grid">
   {% for s in submodulos %}
@@ -316,6 +361,47 @@
     <span>Agregar sub-módulo</span>
   </div>
   {% endif %}
+</div>
+
+<!-- ══════════ MODAL: NUEVO SUB ════════════ -->
+<div class="vin-modal-overlay" id="modalSubirRaiz">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-upload"></i> Cargar archivo en {{ modulo.nombre }}</h3>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('vinculacion.subir_archivo_raiz', id=modulo.id) }}">
+      <div class="vin-form-group">
+        <label>Archivo <span style="color:var(--danger)">*</span></label>
+        <input type="file" name="archivo" class="glass-input" accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.zip,.txt" required>
+      </div>
+      <div class="vin-form-group">
+        <label>Nombre visible</label>
+        <input type="text" name="nombre" class="glass-input" placeholder="Opcional">
+      </div>
+      <div class="vin-form-group">
+        <label>Descripción</label>
+        <textarea name="descripcion" class="glass-textarea" rows="2"></textarea>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalSubirRaiz')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Cargar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="vin-modal-overlay" id="modalNuevaCarpeta">
+  <div class="vin-modal">
+    <h3><i class="fa-solid fa-folder-plus"></i> Nueva carpeta</h3>
+    <form method="POST" action="{{ url_for('vinculacion.crear_carpeta_raiz', id=modulo.id) }}">
+      <div class="vin-form-group">
+        <label>Nombre <span style="color:var(--danger)">*</span></label>
+        <input type="text" name="nombre" class="glass-input" placeholder="Ej. Convenios" required>
+      </div>
+      <div class="vin-modal-footer">
+        <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalNuevaCarpeta')">Cancelar</button>
+        <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Crear</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- ══════════ MODAL: NUEVO SUB ════════════ -->
@@ -412,6 +498,8 @@ document.addEventListener('keydown', e => {
 });
 
 document.getElementById('btnNuevoSub').addEventListener('click', () => openModal('modalNuevoSub'));
+document.getElementById('btnSubirRaiz').addEventListener('click', () => openModal('modalSubirRaiz'));
+document.getElementById('btnNuevaCarpeta').addEventListener('click', () => openModal('modalNuevaCarpeta'));
 
 function initIconGrid(gridId, hiddenId, initial) {
   const grid = document.getElementById(gridId);

@@ -1,10 +1,10 @@
 import os
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, current_app, send_file, abort, jsonify)
-from flask_login import login_required
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app.extensions import db
-from app.models import ModuloVinculacion, SubModuloVinculacion, ArchivoSubModulo, Alumno, Universidad, Expediente, Documento, Carrera
+from app.models import ModuloVinculacion, SubModuloVinculacion, ArchivoSubModulo, Carrera, Dependencia, Universidad, Alumno, Expediente, Documento, CarpetaCompartida, ArchivoCompartido
 from app.decorators import roles_required, active_query
 from app.services.logic_word import generar_documento_word
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
@@ -38,6 +38,14 @@ def _save_file(archivo, submodulo_id):
     path = os.path.join(upload_folder, filename)
     archivo.save(path)
     return os.path.join('vinculacion', str(submodulo_id), filename)
+
+
+def _save_root_file(archivo, modulo_id):
+    upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'vinculacion', f'modulo_{modulo_id}')
+    os.makedirs(upload_folder, exist_ok=True)
+    filename = secure_filename(archivo.filename)
+    archivo.save(os.path.join(upload_folder, filename))
+    return os.path.join('vinculacion', f'modulo_{modulo_id}', filename)
 
 
 # ── Auth guard ───────────────────────────────────────────────────────────────
@@ -137,7 +145,12 @@ def detalle_modulo(id):
                   .filter_by(modulo_id=id, is_deleted=False)
                   .order_by(SubModuloVinculacion.orden, SubModuloVinculacion.nombre)
                   .all())
-    return render_template('vinculacion/detalle_modulo.html', modulo=modulo, submodulos=submodulos)
+    archivos_raiz = (ArchivoSubModulo.query
+                     .filter_by(modulo_id=id, submodulo_id=None, is_deleted=False)
+                     .order_by(ArchivoSubModulo.nombre)
+                     .all())
+    return render_template('vinculacion/detalle_modulo.html', modulo=modulo,
+                           submodulos=submodulos, archivos_raiz=archivos_raiz)
 
 
 @vinculacion_bp.route('/<int:id>/submodulo/crear', methods=['POST'])
@@ -176,6 +189,57 @@ def eliminar_submodulo(id, sid):
     db.session.commit()
     flash('Sub-módulo eliminado.', 'success')
     return redirect(url_for('vinculacion.detalle_modulo', id=id))
+
+
+@vinculacion_bp.route('/<int:id>/archivo/subir', methods=['POST'])
+def subir_archivo_raiz(id):
+    modulo = ModuloVinculacion.query.filter_by(id=id, is_deleted=False).first_or_404()
+    nombre = request.form.get('nombre', '').strip()
+    descripcion = request.form.get('descripcion', '').strip()
+    archivo = request.files.get('archivo')
+
+    if not archivo or not archivo.filename:
+        flash('Selecciona un archivo para cargar.', 'danger')
+        return redirect(url_for('vinculacion.detalle_modulo', id=id))
+    if not _allowed(archivo.filename):
+        flash('Tipo de archivo no permitido.', 'danger')
+        return redirect(url_for('vinculacion.detalle_modulo', id=id))
+
+    filename = secure_filename(archivo.filename)
+    a = ArchivoSubModulo(
+        modulo_id=modulo.id,
+        nombre=nombre or filename,
+        descripcion=descripcion,
+        ruta_archivo=_save_root_file(archivo, modulo.id),
+        tipo_archivo=_tipo_from_ext(filename),
+    )
+    db.session.add(a)
+    db.session.commit()
+    flash(f'Archivo «{a.nombre}» cargado en {modulo.nombre}.', 'success')
+    return redirect(url_for('vinculacion.detalle_modulo', id=id))
+
+
+@vinculacion_bp.route('/<int:id>/carpeta/crear', methods=['POST'])
+def crear_carpeta_raiz(id):
+    modulo = ModuloVinculacion.query.filter_by(id=id, is_deleted=False).first_or_404()
+    nombre = request.form.get('nombre', '').strip()
+    if not nombre:
+        flash('El nombre de la carpeta es requerido.', 'danger')
+        return redirect(url_for('vinculacion.detalle_modulo', id=id))
+
+    carpeta = secure_filename(nombre)
+    os.makedirs(os.path.join(current_app.config['UPLOAD_FOLDER'], 'vinculacion', f'modulo_{id}', carpeta), exist_ok=True)
+    flash(f'Carpeta «{nombre}» creada en {modulo.nombre}.', 'success')
+    return redirect(url_for('vinculacion.detalle_modulo', id=id))
+
+
+@vinculacion_bp.route('/<int:id>/archivo/<int:aid>/descargar')
+def descargar_archivo_raiz(id, aid):
+    a = ArchivoSubModulo.query.filter_by(id=aid, modulo_id=id, submodulo_id=None, is_deleted=False).first_or_404()
+    ruta_abs = os.path.join(current_app.config['UPLOAD_FOLDER'], a.ruta_archivo)
+    if not a.ruta_archivo or not os.path.exists(ruta_abs):
+        abort(404)
+    return send_file(ruta_abs, as_attachment=True, download_name=os.path.basename(a.ruta_archivo))
 
 
 # ── Detalle de sub-módulo (archivos) ─────────────────────────────────────────
@@ -321,6 +385,81 @@ def eliminar_universidad(uid):
 
 
 # ── Consulta de Alumnos y Estancias ──────────────────────────────────────────
+
+@vinculacion_bp.route('/alumnos/exportar-compartidos', methods=['POST'])
+def exportar_compartidos():
+    import pandas as pd
+    from datetime import datetime
+    
+    carpeta_id = request.form.get('carpeta_id')
+    nueva_carpeta = request.form.get('nueva_carpeta')
+    nombre_archivo = request.form.get('nombre_archivo', 'Reporte_Alumnos_Vinculacion')
+    
+    if nueva_carpeta:
+        carpeta = CarpetaCompartida(nombre=nueva_carpeta, created_by_id=current_user.id)
+        db.session.add(carpeta)
+        db.session.commit()
+        carpeta_id = carpeta.id
+    elif carpeta_id:
+        carpeta = active_query(CarpetaCompartida).filter_by(id=carpeta_id).first_or_404()
+    else:
+        flash('Debe seleccionar o crear una carpeta.', 'danger')
+        return redirect(url_for('vinculacion.alumnos'))
+
+    search = request.form.get('search', '').strip()
+    carrera_filter = request.form.get('carrera_filter')
+    estatus_filter = request.form.get('estatus_filter')
+    aptos_filter = request.form.get('aptos_filter') == '1'
+
+    query = active_query(Alumno)
+    if search: query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
+    if carrera_filter: query = query.filter(Alumno.carrera_id == carrera_filter)
+    if estatus_filter: query = query.filter(Alumno.estatus == estatus_filter)
+
+    alumnos_list = query.all()
+    if aptos_filter:
+        alumnos_list = [a for a in alumnos_list if a.puede_realizar_estancia]
+
+    data = []
+    for a in alumnos_list:
+        exp_v = a.expedientes.filter_by(tipo_modulo='v', is_deleted=False).first()
+        data.append({
+            'Matrícula': a.matricula,
+            'Alumno': a.nombre,
+            'Carrera': a.carrera.nombre if a.carrera else '-',
+            'Semestre': a.semestre or '-',
+            'Estatus Global': a.estatus or '-',
+            '¿Apto para Estancia?': 'Sí' if a.puede_realizar_estancia else 'No',
+            'Universidad Asignada': exp_v.universidad.nombre if exp_v and exp_v.universidad else 'No asignada',
+            'Periodo': exp_v.periodo if exp_v else '-',
+            'Total Docs Estancia': exp_v.documentos.filter_by(is_deleted=False).count() if exp_v else 0
+        })
+        
+    df = pd.DataFrame(data)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{nombre_archivo}_{timestamp}.xlsx"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'compartidos', str(carpeta_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    ruta_absoluta = os.path.join(upload_dir, filename)
+    
+    df.to_excel(ruta_absoluta, index=False)
+    
+    ruta_relativa = os.path.join('compartidos', str(carpeta_id), filename)
+    
+    nuevo_archivo = ArchivoCompartido(
+        carpeta_id=carpeta_id,
+        nombre=nombre_archivo,
+        ruta_archivo=ruta_relativa,
+        tipo_archivo='xlsx',
+        uploaded_by_id=current_user.id
+    )
+    db.session.add(nuevo_archivo)
+    db.session.commit()
+    
+    flash(f'Reporte guardado en Compartidos -> {carpeta.nombre}', 'success')
+    return redirect(url_for('vinculacion.alumnos'))
+
 
 @vinculacion_bp.route('/alumnos')
 def alumnos():
