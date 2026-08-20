@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - {{ modulo_label }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.menu') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al menú</a>
+    <h2 style="font-size: 1.8rem; font-weight: 700; margin-top: 5px; margin-bottom: 5px;">Dashboard - {{ modulo_label }}</h2>
+    <p style="color: var(--text-muted);">Estadísticas y resumen de alumnos e indicadores del módulo</p>
+</div>
+
+{# ── Tarjetas Informativas ──────────────────────────────────────────────── #}
+<div class="stats-grid" style="margin-bottom: 32px;">
+    <div class="glass-card stats-card" style="border-top: 4px solid var(--success);">
+        <div class="stats-icon" style="font-size: 2.2rem; margin-bottom: 8px;">✅</div>
+        <div class="stats-number" style="font-size: 1.8rem; font-weight: 700; margin-bottom: 4px;">{{ tienen_derecho }}</div>
+        <div class="stats-label" style="font-size: 0.82rem; font-weight: 600; text-align: center;">Tienen Derecho</div>
+    </div>
+    
+    <div class="glass-card stats-card" style="border-top: 4px solid var(--danger);">
+        <div class="stats-icon" style="font-size: 2.2rem; margin-bottom: 8px;">❌</div>
+        <div class="stats-number" style="font-size: 1.8rem; font-weight: 700; margin-bottom: 4px;">{{ no_tienen_derecho }}</div>
+        <div class="stats-label" style="font-size: 0.82rem; font-weight: 600; text-align: center;">No Tienen Derecho</div>
+    </div>
+    
+    <div class="glass-card stats-card" style="border-top: 4px solid var(--info);">
+        <div class="stats-icon" style="font-size: 2.2rem; margin-bottom: 8px;">📁</div>
+        <div class="stats-number" style="font-size: 1.8rem; font-weight: 700; margin-bottom: 4px;">{{ total_practicas }}</div>
+        <div class="stats-label" style="font-size: 0.82rem; font-weight: 600; text-align: center;">Prácticas Registradas</div>
+    </div>
+    
+    <div class="glass-card stats-card" style="border-top: 4px solid var(--accent);">
+        <div class="stats-icon" style="font-size: 2.2rem; margin-bottom: 8px;">🏆</div>
+        <div class="stats-number" style="font-size: 1.8rem; font-weight: 700; margin-bottom: 4px;">{{ concluidas }}</div>
+        <div class="stats-label" style="font-size: 0.82rem; font-weight: 600; text-align: center;">Concluidas</div>
+    </div>
+</div>
+
+{# ── Sección de Gráficos ─────────────────────────────────────────────────── #}
+<div class="charts-grid" style="margin-bottom: 24px;">
+    <div class="glass-card" style="min-height: 320px; display: flex; flex-direction: column; justify-content: center;">
+        <div class="chart-container" style="position: relative; height: 260px; width: 100%;">
+            <canvas id="chartDerecho"></canvas>
+        </div>
+    </div>
+    
+    <div class="glass-card" style="min-height: 320px; display: flex; flex-direction: column; justify-content: center;">
+        <div class="chart-container" style="position: relative; height: 260px; width: 100%;">
+            <canvas id="chartEstatus"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="glass-card" style="grid-column: span 2; min-height: 340px; display: flex; flex-direction: column; justify-content: center;">
+        <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+            <canvas id="chartProcesos"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para obtener colores en base al tema
+    function getThemeColors() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            textColor: isDark ? '#f1f5f9' : '#1e293b',
+            gridColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+        };
+    }
+    
+    let colors = getThemeColors();
+    
+    // 1. Gráfico de Derecho a Prácticas
+    const ctxDerecho = document.getElementById('chartDerecho').getContext('2d');
+    const chartDerecho = new Chart(ctxDerecho, {
+        type: 'doughnut',
+        data: {
+            labels: ['Tienen Derecho', 'No Tienen Derecho'],
+            datasets: [{
+                data: [{{ tienen_derecho }}, {{ no_tienen_derecho }}],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.85)', // Verde Success
+                    'rgba(239, 68, 68, 0.85)'   // Rojo Danger
+                ],
+                borderWidth: 0,
+                spacing: 4,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: colors.textColor, padding: 12, usePointStyle: true, font: { family: 'Inter', size: 12 } }
+                },
+                title: {
+                    display: true,
+                    text: 'Derecho a Prácticas Profesionales',
+                    color: colors.textColor,
+                    font: { family: 'Inter', size: 15, weight: '600' },
+                    padding: { bottom: 12 }
+                }
+            }
+        }
+    });
+
+    // 2. Gráfico de Estatus de Prácticas
+    const ctxEstatus = document.getElementById('chartEstatus').getContext('2d');
+    const chartEstatus = new Chart(ctxEstatus, {
+        type: 'doughnut',
+        data: {
+            labels: ['Concluido', 'En Trámite', 'Sin Estatus'],
+            datasets: [{
+                data: [{{ concluidas }}, {{ en_tramite }}, {{ sin_estatus }}],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.85)', // Verde
+                    'rgba(245, 158, 11, 0.85)', // Naranja Warning
+                    'rgba(148, 163, 184, 0.85)' // Gris Neutral
+                ],
+                borderWidth: 0,
+                spacing: 4,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: colors.textColor, padding: 12, usePointStyle: true, font: { family: 'Inter', size: 12 } }
+                },
+                title: {
+                    display: true,
+                    text: 'Estatus de Prácticas Registradas',
+                    color: colors.textColor,
+                    font: { family: 'Inter', size: 15, weight: '600' },
+                    padding: { bottom: 12 }
+                }
+            }
+        }
+    });
+
+    // 3. Gráfico de Procesos
+    const ctxProcesos = document.getElementById('chartProcesos').getContext('2d');
+    const chartProcesos = new Chart(ctxProcesos, {
+        type: 'bar',
+        data: {
+            labels: {{ proceso_data.keys() | list | tojson }},
+            datasets: [{
+                data: {{ proceso_data.values() | list | tojson }},
+                backgroundColor: 'rgba(79, 70, 229, 0.8)', // Indigo Accent
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Distribución de Prácticas por Tipo de Proceso',
+                    color: colors.textColor,
+                    font: { family: 'Inter', size: 15, weight: '600' },
+                    padding: { bottom: 12 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: colors.gridColor },
+                    ticks: { color: colors.textColor, font: { family: 'Inter' }, stepSize: 1 }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: colors.textColor, font: { family: 'Inter' } }
+                }
+            }
+        }
+    });
+
+    // Observer para actualizar los colores de los gráficos cuando cambie el tema
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'data-theme') {
+                const newColors = getThemeColors();
+                [chartDerecho, chartEstatus, chartProcesos].forEach(chart => {
+                    if (chart) {
+                        chart.options.plugins.title.color = newColors.textColor;
+                        if (chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                            chart.options.plugins.legend.labels.color = newColors.textColor;
+                        }
+                        if (chart.options.scales) {
+                            if (chart.options.scales.x && chart.options.scales.x.ticks) {
+                                chart.options.scales.x.ticks.color = newColors.textColor;
+                            }
+                            if (chart.options.scales.y && chart.options.scales.y.ticks) {
+                                chart.options.scales.y.ticks.color = newColors.textColor;
+                                chart.options.scales.y.grid.color = newColors.gridColor;
+                            }
+                        }
+                        chart.update();
+                    }
+                });
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+});
+</script>
+{% endblock %}

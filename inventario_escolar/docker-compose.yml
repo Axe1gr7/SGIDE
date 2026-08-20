@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./migration_vinculacion.sql:/docker-entrypoint-initdb.d/1_migration_vinculacion.sql
+      - ./migration_practicas.sql:/docker-entrypoint-initdb.d/2_migration_practicas.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -18,12 +20,12 @@ services:
 
   web:
     build: .
-    command: sh -c "flask seed-db && flask run --host=0.0.0.0 --port=5000 --reload"
+    restart: always
+    command: ["sh", "./entrypoint.sh"]
     ports:
-      - "5001:5000"
+      - "80:5000"
     volumes:
-      - .:/app
-      - ./uploads:/uploads
+      - uploads_data:/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -34,3 +36,4 @@ services:
 
 volumes:
   pgdata:
+  uploads_data:

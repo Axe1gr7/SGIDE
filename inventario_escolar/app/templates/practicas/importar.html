@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Importación Masiva - {{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.menu') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al menú</a>
+    <h2 style="margin-top: 5px;">Importación Masiva de Prácticas</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Puebla la tabla de prácticas cargando un archivo Excel con el formato oficial.</p>
+</div>
+
+<div class="glass-card" style="max-width: 900px; margin: 0 auto 24px auto;">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 2.8rem; color: var(--accent); margin-bottom: 12px;">
+            <i class="fa-solid fa-file-excel"></i>
+        </div>
+        <h3 style="margin-bottom: 8px;">Cargar Archivo Excel de Prácticas</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 650px; margin: 0 auto;">
+            Sube tu archivo <strong style="color: var(--text-primary);">.xlsx</strong> o <strong style="color: var(--text-primary);">.xls</strong>. Para que los registros se importen y se vinculen correctamente con los campos de la Base de Datos, la primera fila del archivo debe incluir los siguientes encabezados exactos.
+        </p>
+    </div>
+
+    {# ── Aviso de Encabezados Requeridos ── #}
+    <div style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-table-list" style="color: var(--accent);"></i>
+                Encabezados esperados en la tabla de Excel ({{ columnas_mapa|length }} columnas)
+            </div>
+            <span style="font-size: 0.8rem; background: rgba(79, 70, 229, 0.1); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-weight: 500;">
+                Claves obligatorias: MATRÍCULA y No. CONSTANCIA
+            </span>
+        </div>
+        
+        <p style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 12px;">
+            Verifica que los nombres de las columnas en tu hoja de cálculo coincidan con la siguiente lista (el orden de lectura no afecta):
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; max-height: 260px; overflow-y: auto; padding: 8px; background: var(--bg-glass); border: 1px solid var(--glass-border); border-radius: 8px;">
+            {% for field, header in columnas_mapa %}
+            <div style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px; background: rgba(0,0,0,0.02); {% if header in ['MATRÍCULA', 'No. CONSTANCIA'] %}border-left: 3px solid var(--accent); font-weight: 600;{% endif %}">
+                <span style="color: var(--text-muted); font-size: 0.7rem; min-width: 18px;">{{ loop.index }}.</span>
+                <span style="color: var(--text-primary); word-break: break-word;">{{ header }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ── Formulario de subida ── #}
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('practicas.importar') }}" style="text-align: center; margin-bottom: 10px;">
+        <div style="margin-bottom: 20px;">
+            <input type="file" name="archivo_excel" accept=".xlsx, .xls" class="glass-input" style="padding: 10px; max-width: 420px; margin: 0 auto; display: block;" required>
+        </div>
+        <button type="submit" class="glass-btn">
+            <i class="fa-solid fa-upload"></i> Procesar e Importar Prácticas
+        </button>
+    </form>
+
+    {% if resultado %}
+    <div style="background: var(--bg-primary); border-radius: 12px; padding: 20px; border: 1px solid var(--glass-border); margin-top: 24px;">
+        <h4 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">Resultados de la Importación</h4>
+        
+        <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 140px; text-align: center; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--success);">{{ resultado.insertados }}</div>
+                <div style="font-size: 0.85rem; font-weight: 500;">Insertados</div>
+            </div>
+            <div style="flex: 1; min-width: 140px; text-align: center; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--info);">{{ resultado.duplicados }}</div>
+                <div style="font-size: 0.85rem; font-weight: 500;">Duplicados Omitidos</div>
+            </div>
+            <div style="flex: 1; min-width: 140px; text-align: center; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 15px; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">{{ resultado.errores|length }}</div>
+                <div style="font-size: 0.85rem; font-weight: 500;">Errores</div>
+            </div>
+        </div>
+
+        {% if resultado.errores %}
+        <div>
+            <h5 style="color: var(--danger); margin-bottom: 10px;"><i class="fa-solid fa-circle-exclamation"></i> Detalle de errores:</h5>
+            <div style="max-height: 200px; overflow-y: auto; background: var(--bg-glass); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px; font-size: 0.85rem; font-family: monospace;">
+                <ul style="margin: 0; padding-left: 20px; color: var(--danger);">
+                    {% for error in resultado.errores %}
+                    <li style="margin-bottom: 4px;">{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

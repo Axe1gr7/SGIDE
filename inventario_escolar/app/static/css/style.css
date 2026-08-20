@@ -566,3 +566,43 @@ a:hover {
   background: var(--accent-gradient);
   color: white;
 }
+
+/* ── Modal (glass-modal) ─────────────────────────────────────────────────── */
+
+.glass-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.glass-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.glass-modal {
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow), 0 20px 40px rgba(0, 0, 0, 0.15);
+  padding: 28px;
+  width: 90%;
+  max-width: 600px;
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.25s ease;
+}
+
+.glass-modal-overlay.active .glass-modal {
+  transform: translateY(0) scale(1);
+}

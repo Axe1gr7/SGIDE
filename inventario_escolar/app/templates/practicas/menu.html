@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}{{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <h2 style="margin-bottom: 6px;">{{ modulo_label }}</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Selecciona un submódulo para continuar.</p>
+</div>
+
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+
+    <a href="{{ url_for('practicas.dashboard') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
+        <div class="stats-icon">📊</div>
+        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Dashboard</div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Resumen general del módulo</p>
+    </a>
+
+    <a href="{{ url_for('practicas.alumnos') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
+        <div class="stats-icon">👥</div>
+        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Alumnos</div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Consultar y asignar prácticas</p>
+    </a>
+
+    <a href="{{ url_for('practicas.detalles') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
+        <div class="stats-icon">📋</div>
+        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Detalles de Prácticas</div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Gestión de expedientes</p>
+    </a>
+
+    <a href="{{ url_for('practicas.importar') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
+        <div class="stats-icon">📤</div>
+        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Importación Masiva</div>
+        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Poblar registros desde Excel</p>
+    </a>
+
+</div>
+{% endblock %}

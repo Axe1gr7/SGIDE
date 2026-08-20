@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Alumnos - {{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.menu') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al menú</a>
+    <h2 style="margin-top: 5px;">Consulta de Alumnos — {{ modulo_label }}</h2>
+</div>
+
+{# ── Filtros ────────────────────────────────────────────────────────────── #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 2; min-width: 220px;">
+            <label class="form-label">Buscar Alumno</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula del alumno...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Carrera</label>
+            <select name="carrera_filter" class="glass-select">
+                <option value="">Todas</option>
+                {% for c in carreras %}
+                <option value="{{ c.id }}" {% if carrera_filter|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Estatus</label>
+            <select name="estatus_filter" class="glass-select">
+                <option value="">Todos</option>
+                {% for est in estatuses %}
+                <option value="{{ est }}" {% if estatus_filter == est %}selected{% endif %}>{{ est }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 2px;">
+            <input type="checkbox" name="solo_aptos" value="1" id="soloAptos" {% if solo_aptos %}checked{% endif %} style="width: 16px; height: 16px; accent-color: var(--accent);">
+            <label for="soloAptos" style="font-size: 0.85rem; white-space: nowrap; cursor: pointer;">Solo aptos para Prácticas</label>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="glass-btn">Filtrar</button>
+            <a href="{{ url_for('practicas.alumnos') }}" class="glass-btn glass-btn-outline">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+{# ── Tabla de Alumnos ───────────────────────────────────────────────────── #}
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th style="white-space: nowrap;">Matrícula</th>
+                <th>Carrera / Generación</th>
+                <th style="white-space: nowrap; text-align: center;">Servicio Social</th>
+                <th style="white-space: nowrap; text-align: center;">Estatus Prácticas</th>
+                <th style="white-space: nowrap; text-align: center;">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in alumnos_data %}
+            {% set a = item.alumno %}
+            <tr>
+                {# ── Alumno (nombre + badge estatus) ── #}
+                <td>
+                    <div style="font-weight: 600;">{{ a.nombre }}</div>
+                    <div style="margin-top: 4px;">
+                        <span class="badge badge-{{ a.estatus }}">{{ a.estatus }}</span>
+                    </div>
+                </td>
+
+                {# ── Matrícula ── #}
+                <td style="white-space: nowrap;">{{ a.matricula or '—' }}</td>
+
+                {# ── Carrera / Generación ── #}
+                <td>
+                    <div>{{ a.carrera.nombre if a.carrera else '—' }}</div>
+                    <div style="color: var(--text-muted); font-size: 0.85rem;">Gen: {{ a.generacion_completa }}</div>
+                </td>
+
+                {# ── Servicio Social ── #}
+                <td style="text-align: center; white-space: nowrap;">
+                    {% if item.ss_completo %}
+                    <span style="color: var(--success); font-weight: 600;">
+                        <i class="fa-solid fa-circle-check"></i> Completado
+                    </span>
+                    {% else %}
+                    <span style="color: var(--warning); font-weight: 600;">
+                        <i class="fa-solid fa-clock"></i> Pendiente
+                    </span>
+                    {% endif %}
+                </td>
+
+                {# ── Estatus Prácticas ── #}
+                <td style="text-align: center; white-space: nowrap;">
+                    {% if item.apto_practicas %}
+                    <span style="color: var(--success); font-weight: 600;">
+                        <i class="fa-solid fa-circle-check"></i> Apto
+                    </span>
+                    {% else %}
+                    <span style="color: var(--danger); font-weight: 600;">
+                        <i class="fa-solid fa-circle-xmark"></i> No apto
+                    </span>
+                    {% endif %}
+                </td>
+
+                {# ── Acción ── #}
+                <td style="text-align: center; white-space: nowrap;">
+                    {% if item.tiene_practica %}
+                    <a href="{{ url_for('practicas.detalle_practica', alumno_id=a.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
+                        <i class="fa-solid fa-folder-open"></i> VER DETALLES
+                    </a>
+                    {% elif item.apto_practicas %}
+                    <a href="{{ url_for('practicas.asignar', alumno_id=a.id) }}" class="glass-btn glass-btn-small" style="white-space: nowrap;">
+                        <i class="fa-solid fa-plus"></i> ASIGNAR PRÁCTICAS
+                    </a>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Requiere completar SS</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                    No se encontraron alumnos con los filtros seleccionados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/_pagination.html' %}
+{% endblock %}

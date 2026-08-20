@@ -1,0 +1,524 @@
+{% extends 'base.html' %}
+{% block title %}Asignar Prácticas - {{ alumno.nombre }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.alumnos') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista de alumnos</a>
+    <h2 style="margin-top: 5px;">Asignar Prácticas Profesionales</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Alumno: <strong style="color: var(--text-primary);">{{ alumno.nombre }}</strong> — Matrícula: <strong style="color: var(--text-primary);">{{ alumno.matricula }}</strong>
+    </p>
+</div>
+
+<form method="POST" action="{{ url_for('practicas.asignar', alumno_id=alumno.id) }}">
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 1: Datos del Alumno                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-user-graduate" style="color: var(--accent);"></i> Datos del Alumno
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">No. Registro</label>
+            <input type="number" name="no_registro" class="glass-input" placeholder="Ej: 002">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Consecutivo</label>
+            <input type="number" name="consecutivo" class="glass-input" placeholder="Ej: 002">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">No. Constancia</label>
+            <input type="text" name="no_constancia" class="glass-input" placeholder="Ej: PC06/MATUTINO/002/2026">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Nombre (Mayúsculas)</label>
+            <input type="text" name="nombre" class="glass-input" value="{{ prefill.nombre }}">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Nombre (Minúsculas)</label>
+            <input type="text" name="nombre_minusculas" class="glass-input" value="{{ prefill.nombre_minusculas }}">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Matrícula</label>
+            <input type="text" name="matricula" class="glass-input" value="{{ prefill.matricula }}">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Teléfono</label>
+            <input type="text" name="telefono" class="glass-input" placeholder="Ej: 4421234567">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Correo Estudiante</label>
+            <input type="text" name="correo_estudiante" class="glass-input" placeholder="correo@ejemplo.com">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 2: Datos Académicos                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-graduation-cap" style="color: var(--accent);"></i> Datos Académicos
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Grado-Carrera</label>
+            <select name="grado_carrera" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.GRADOS_CARRERA %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Turno</label>
+            <select name="turno" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.TURNOS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Carrera</label>
+            <select name="carrera" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.CARRERAS %}
+                <option value="{{ opt }}" {% if prefill.carrera == opt %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Observaciones</label>
+            <select name="observaciones" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OBSERVACIONES_OPTS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Proceso</label>
+            <select name="proceso" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.PROCESOS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 3: Empresa / Proyecto                                            #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-building" style="color: var(--accent);"></i> Empresa / Proyecto
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Empresa / Dependencia</label>
+            <select name="empresa" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for dep in dependencias %}
+                <option value="{{ dep.nombre }}">{{ dep.nombre }}</option>
+                {% endfor %}
+                <option value="Otra">Otra (Registrar primero en Dependencias)</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Sector</label>
+            <select name="sector" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.SECTORES %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Nombre del Proyecto</label>
+            <input type="text" name="nombre_proyecto" class="glass-input" placeholder="Nombre del proyecto">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Tel. Empresa</label>
+            <input type="text" name="tel_empresa" class="glass-input" placeholder="Teléfono de la empresa">
+        </div>
+        <div class="form-group" style="margin-bottom:0; grid-column: span 2;">
+            <label class="form-label">Dirección Empresa</label>
+            <input type="text" name="direccion_empresa" class="glass-input" placeholder="Dirección completa">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Correo Empresa</label>
+            <input type="text" name="correo_empresa" class="glass-input" placeholder="correo@empresa.com">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 4: Datos Personales                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-id-card" style="color: var(--accent);"></i> Datos Personales
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Generación</label>
+            <input type="text" name="generacion" class="glass-input" value="{{ prefill.generacion }}" placeholder="Ej: 23-26">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">H/M</label>
+            <select name="sexo" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.SEXOS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Becados</label>
+            <input type="number" step="0.01" name="becados" class="glass-input" placeholder="Ej: 1.00">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Monto</label>
+            <input type="text" name="monto" class="glass-input" placeholder="Ej: N/A o monto">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 5: Solicitud de Prácticas                                        #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-signature" style="color: var(--accent);"></i> Solicitud de Prácticas
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">S. PRÁC</label>
+            <select name="s_prac" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">S. PRÁC. (Fecha)</label>
+            <input type="date" name="s_prac_fecha_excel" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F. Inicio</label>
+            <input type="date" name="f_inicio" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Día</label>
+            <input type="number" name="f_inicio_dia" class="glass-input" placeholder="Ej: 8">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Mes</label>
+            <input type="text" name="f_inicio_mes" class="glass-input" placeholder="Ej: diciembre">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Año</label>
+            <input type="number" name="f_inicio_anio" class="glass-input" placeholder="Ej: 2025">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 6: Carta de Presentación                                         #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-envelope-open-text" style="color: var(--accent);"></i> Carta de Presentación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">C.PRES.</label>
+            <select name="c_pres" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">C.PRES. (Fecha)</label>
+            <input type="date" name="c_pres_fecha_excel" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.C.P</label>
+            <input type="date" name="f_cp" class="glass-input">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 7: Carta de Aceptación                                           #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-handshake" style="color: var(--accent);"></i> Carta de Aceptación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">C. ACEP</label>
+            <select name="c_acep" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">C. ACEP. (Fecha)</label>
+            <input type="date" name="c_acep_fecha_excel" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.C.A</label>
+            <input type="date" name="f_ca" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Día</label>
+            <input type="number" name="f_ca_dia" class="glass-input" placeholder="Ej: 8">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Mes</label>
+            <input type="text" name="f_ca_mes" class="glass-input" placeholder="Ej: diciembre">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Año</label>
+            <input type="number" name="f_ca_anio" class="glass-input" placeholder="Ej: 2025">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 8: Plan de Trabajo                                               #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-list-check" style="color: var(--accent);"></i> Plan de Trabajo
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">P. TRABJ</label>
+            <select name="p_trabj" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">P. TRABJ. (Fecha)</label>
+            <input type="date" name="p_trabj_fecha_excel" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F. P.TR</label>
+            <input type="date" name="f_ptr" class="glass-input">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 9: Informe Intermedio                                             #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-lines" style="color: var(--accent);"></i> Informe Intermedio
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">I. INTER</label>
+            <select name="i_inter" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">I. INTER. (Fecha)</label>
+            <input type="date" name="i_inter_fecha_excel" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.I.I.</label>
+            <input type="date" name="f_ii" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.L. I.I. (Fecha Límite)</label>
+            <input type="date" name="f_l_ii" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.ESTADOS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 10: Informe Final                                                #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-circle-check" style="color: var(--accent);"></i> Informe Final
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">INF. FINAL</label>
+            <select name="inf_final" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">INF. FINAL (Valor)</label>
+            <input type="number" name="inf_final_valor" class="glass-input" placeholder="Ej: 2">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.I.FINAL</label>
+            <input type="date" name="f_i_final" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Estado Inf. Final</label>
+            <select name="estado_inf_final" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.ESTADOS %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 11: Revisión-Entrega Final                                       #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-clipboard-check" style="color: var(--accent);"></i> Revisión-Entrega Final
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">R-E-FINAL</label>
+            <select name="r_e_final" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">R-E-FINAL (Valor)</label>
+            <input type="number" step="0.01" name="r_e_final_valor" class="glass-input" placeholder="Ej: 2.00">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.R-E FINAL</label>
+            <input type="date" name="f_re_final" class="glass-input">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 12: Constancia de Terminación                                     #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-award" style="color: var(--accent);"></i> Constancia de Terminación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">CONS.T</label>
+            <select name="cons_t" class="glass-select">
+                <option value="">Seleccionar...</option>
+                {% for opt in practica_model.OPTS_SNC %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">C.T (Valor)</label>
+            <input type="number" step="0.01" name="c_t_valor" class="glass-input" placeholder="Ej: 2.00">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">F.C.T</label>
+            <input type="date" name="f_ct" class="glass-input">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Día</label>
+            <input type="number" name="f_ct_dia" class="glass-input" placeholder="Ej: 9">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Mes</label>
+            <input type="text" name="f_ct_mes" class="glass-input" placeholder="Ej: marzo">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Año</label>
+            <input type="number" name="f_ct_anio" class="glass-input" placeholder="Ej: 2026">
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 13: Cierre del Proceso                                           #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-flag-checkered" style="color: var(--accent);"></i> Cierre del Proceso
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Promedio</label>
+            <input type="text" name="promedio" class="glass-input" placeholder="Ej: 100%">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Tiempo del Proceso</label>
+            <input type="text" name="tiempo_proceso" class="glass-input" placeholder="Ej: 3 meses 1 día">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Carpeta</label>
+            <input type="text" name="carpeta" class="glass-input" placeholder="Ej: BLOQUE 1">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Paso por Constancia</label>
+            <input type="text" name="paso_por_constancia" class="glass-input" placeholder="Ej: P.P.E.C-BLOQUE 1">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">P.C.</label>
+            <input type="text" name="pc" class="glass-input" placeholder="Abreviatura">
+        </div>
+    </div>
+    <div style="margin-top: 16px;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Resumen / Observaciones</label>
+            <textarea name="resumen_observaciones" class="glass-textarea" rows="3" placeholder="Observaciones generales del proceso..."></textarea>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# Botones de acción                                                         #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div style="display: flex; gap: 12px; justify-content: flex-end; margin-bottom: 40px;">
+    <a href="{{ url_for('practicas.alumnos') }}" class="glass-btn glass-btn-outline">
+        <i class="fa-solid fa-xmark"></i> Cancelar
+    </a>
+    <button type="submit" class="glass-btn">
+        <i class="fa-solid fa-floppy-disk"></i> Guardar Registro
+    </button>
+</div>
+
+</form>
+{% endblock %}

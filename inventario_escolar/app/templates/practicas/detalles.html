@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Detalles de Prácticas - {{ modulo_label }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.menu') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al menú</a>
+    <h2 style="margin-top: 5px;">Detalles de Prácticas Profesionales</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">{{ practicas|length }} registro{{ 's' if practicas|length != 1 else '' }} encontrado{{ 's' if practicas|length != 1 else '' }}</p>
+</div>
+
+{# ── Barra de acciones ──────────────────────────────────────────────────── #}
+<div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+    <button id="btnOpenFilters" class="glass-btn" style="position: relative;">
+        <i class="fa-solid fa-filter"></i> FILTROS
+        {% if filtros_activos > 0 %}
+        <span style="position: absolute; top: -6px; right: -6px; background: var(--danger); color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-weight: 700;">{{ filtros_activos }}</span>
+        {% endif %}
+    </button>
+
+    {# Build export URL with same query params #}
+    <a href="{{ url_for('practicas.exportar_detalles', **request.args) }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
+        <i class="fa-solid fa-file-excel"></i> Descargar Excel
+    </a>
+
+    {% if filtros_activos > 0 %}
+    <a href="{{ url_for('practicas.detalles') }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
+        <i class="fa-solid fa-xmark"></i> Limpiar Filtros
+    </a>
+    {% endif %}
+</div>
+
+{# ── Modal de Filtros ────────────────────────────────────────────────────── #}
+<div id="filtrosOverlay" class="glass-modal-overlay">
+    <div class="glass-modal" style="max-width: 820px; max-height: 85vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;"><i class="fa-solid fa-filter" style="color: var(--accent);"></i> Filtros Avanzados</h3>
+            <button id="btnCloseFilters" class="glass-btn glass-btn-outline glass-btn-small" style="border: none; font-size: 1.2rem; padding: 4px 8px;">✕</button>
+        </div>
+
+        <form method="GET" action="{{ url_for('practicas.detalles') }}" id="filtrosForm">
+            {# ── Búsqueda general ── #}
+            <div class="form-group">
+                <label class="form-label">Búsqueda general</label>
+                <input type="text" name="search" class="glass-input" value="{{ request.args.get('search', '') }}" placeholder="Nombre, matrícula, empresa o No. constancia...">
+            </div>
+
+            {# ── Generación ── #}
+            <div class="form-group">
+                <label class="form-label">Generación</label>
+                <input type="text" name="f_generacion" class="glass-input" value="{{ request.args.get('f_generacion', '') }}" placeholder="Ej: 23-26">
+            </div>
+
+            {# ── Selectores ── #}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                {% for param_name, db_field, options, label in filtros_selector %}
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 0.82rem;">{{ label }}</label>
+                    <select name="{{ param_name }}" class="glass-select" style="font-size: 0.88rem;">
+                        <option value="">Todos</option>
+                        {% for opt in options %}
+                        <option value="{{ opt }}" {% if request.args.get(param_name) == opt %}selected{% endif %}>{{ opt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+
+            {# ── Columnas visibles ── #}
+            <details style="margin-bottom: 20px;">
+                <summary style="cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 10px;">
+                    <i class="fa-solid fa-table-columns"></i> Columnas visibles ({{ columnas_activas|length }}/{{ columnas_mapa|length }})
+                </summary>
+                <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 14px; margin-top: 8px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button type="button" id="btnSelectAll" class="glass-btn glass-btn-small glass-btn-outline" style="font-size: 0.78rem;">Marcar todo</button>
+                        <button type="button" id="btnDeselectAll" class="glass-btn glass-btn-small glass-btn-outline" style="font-size: 0.78rem;">Desmarcar todo</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 4px 16px; max-height: 300px; overflow-y: auto;">
+                        {% for field, header in columnas_mapa %}
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer; padding: 2px 0;">
+                            <input type="checkbox" name="cols" value="{{ field }}" class="col-checkbox" {% if field in columnas_activas %}checked{% endif %} style="width: 14px; height: 14px; accent-color: var(--accent);">
+                            {{ header }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+
+            {# ── Botones ── #}
+            <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--glass-border);">
+                <button type="button" id="btnCancelFilters" class="glass-btn glass-btn-outline">Cancelar</button>
+                <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Aplicar Filtros</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Tabla de datos ──────────────────────────────────────────────────────── #}
+{% if practicas %}
+<div class="glass-table-wrapper" style="max-height: 75vh; overflow-y: auto;">
+    <table class="glass-table" style="min-width: {{ columnas_activas|length * 130 }}px;">
+        <thead>
+            <tr>
+                <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2;">#</th>
+                {% for field, header in columnas_mapa %}
+                {% if field in columnas_activas %}
+                <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2; font-size: 0.72rem;">{{ header }}</th>
+                {% endif %}
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in practicas %}
+            <tr>
+                <td style="white-space: nowrap; color: var(--text-muted); font-size: 0.82rem;">{{ loop.index }}</td>
+                {% for field, header in columnas_mapa %}
+                {% if field in columnas_activas %}
+                <td style="white-space: nowrap; font-size: 0.85rem;">
+                    {% set val = p|attr(field) %}
+                    {% if val is none %}
+                        <span style="color: var(--text-muted);">—</span>
+                    {% elif val is string %}
+                        {% if val in ['SI', 'ENTREGADO', 'CONCLUIDO'] %}
+                            <span class="badge badge-Entregado" style="font-size: 0.72rem;">{{ val }}</span>
+                        {% elif val in ['NO', 'ATRASADO'] %}
+                            <span class="badge badge-NoRealizado" style="font-size: 0.72rem;">{{ val }}</span>
+                        {% elif val == 'EN TRÁMITE' %}
+                            <span class="badge badge-Pendiente" style="font-size: 0.72rem;">{{ val }}</span>
+                        {% elif val == 'CORREGIR' %}
+                            <span style="color: var(--warning); font-weight: 600; font-size: 0.82rem;">{{ val }}</span>
+                        {% else %}
+                            {{ val }}
+                        {% endif %}
+                    {% elif val.__class__.__name__ == 'date' %}
+                        {{ val.strftime('%d/%m/%Y') }}
+                    {% else %}
+                        {{ val }}
+                    {% endif %}
+                </td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="glass-card" style="text-align: center; padding: 40px; color: var(--text-muted);">
+    <div style="font-size: 2.5rem; margin-bottom: 12px;">📋</div>
+    <p style="font-size: 1.1rem; font-weight: 500;">No se encontraron registros de prácticas</p>
+    {% if filtros_activos > 0 %}
+    <p style="font-size: 0.9rem; margin-top: 8px;">Intenta ajustar los filtros o <a href="{{ url_for('practicas.detalles') }}">limpiar todos los filtros</a>.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('filtrosOverlay');
+    const btnOpen = document.getElementById('btnOpenFilters');
+    const btnClose = document.getElementById('btnCloseFilters');
+    const btnCancel = document.getElementById('btnCancelFilters');
+    const btnSelectAll = document.getElementById('btnSelectAll');
+    const btnDeselectAll = document.getElementById('btnDeselectAll');
+
+    function openModal() { overlay.classList.add('active'); }
+    function closeModal() { overlay.classList.remove('active'); }
+
+    btnOpen.addEventListener('click', openModal);
+    btnClose.addEventListener('click', closeModal);
+    btnCancel.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeModal();
+    });
+
+    // Columnas: marcar / desmarcar todo
+    const checkboxes = document.querySelectorAll('.col-checkbox');
+    if (btnSelectAll) {
+        btnSelectAll.addEventListener('click', function() {
+            checkboxes.forEach(cb => cb.checked = true);
+        });
+    }
+    if (btnDeselectAll) {
+        btnDeselectAll.addEventListener('click', function() {
+            checkboxes.forEach(cb => cb.checked = false);
+        });
+    }
+
+    // Si hay filtros activos al cargar, no abrir automáticamente
+    // pero si la URL tiene 0 resultados y filtros, podríamos indicar algo visual (ya lo hace el template)
+});
+</script>
+{% endblock %}

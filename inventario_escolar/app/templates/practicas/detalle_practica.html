@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Práctica - {{ alumno.nombre }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{{ url_for('practicas.alumnos') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista de alumnos</a>
+    <h2 style="margin-top: 5px;">Detalle de Prácticas Profesionales</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Alumno: <strong style="color: var(--text-primary);">{{ alumno.nombre }}</strong> — Matrícula: <strong style="color: var(--text-primary);">{{ alumno.matricula }}</strong>
+    </p>
+</div>
+
+{# ── Macro para mostrar un campo ── #}
+{% macro field(label, value) %}
+<div>
+    <strong style="color: var(--text-muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em;">{{ label }}</strong>
+    <div style="margin-top: 2px; font-size: 0.95rem;">{{ value if value else '—' }}</div>
+</div>
+{% endmacro %}
+
+{% macro field_badge(label, value, type='info') %}
+<div>
+    <strong style="color: var(--text-muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em;">{{ label }}</strong>
+    <div style="margin-top: 4px;">
+        {% if value %}
+        <span class="badge badge-{{ type }}">{{ value }}</span>
+        {% else %}
+        <span style="color: var(--text-muted);">—</span>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro field_date(label, value) %}
+{{ field(label, value.strftime('%d/%m/%Y') if value else None) }}
+{% endmacro %}
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 1: Datos del Alumno                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-user-graduate" style="color: var(--accent);"></i> Datos del Alumno
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field('No. Registro', practica.no_registro) }}
+        {{ field('Consecutivo', practica.consecutivo) }}
+        {{ field('No. Constancia', practica.no_constancia) }}
+        {{ field('Nombre', practica.nombre) }}
+        {{ field('Nombre (Minúsculas)', practica.nombre_minusculas) }}
+        {{ field('Matrícula', practica.matricula) }}
+        {{ field('Teléfono', practica.telefono) }}
+        {{ field('Correo Estudiante', practica.correo_estudiante) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 2: Datos Académicos                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-graduation-cap" style="color: var(--accent);"></i> Datos Académicos
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field('Grado-Carrera', practica.grado_carrera) }}
+        {{ field('Turno', practica.turno) }}
+        {{ field('Carrera', practica.carrera) }}
+        {{ field_badge('Observaciones', practica.observaciones, 'Entregado' if practica.observaciones == 'CONCLUIDO' else 'Pendiente') }}
+        {{ field('Proceso', practica.proceso) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 3: Empresa / Proyecto                                            #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-building" style="color: var(--accent);"></i> Empresa / Proyecto
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field('Empresa', practica.empresa) }}
+        {{ field('Sector', practica.sector) }}
+        {{ field('Nombre del Proyecto', practica.nombre_proyecto) }}
+        {{ field('Tel. Empresa', practica.tel_empresa) }}
+        {{ field('Dirección Empresa', practica.direccion_empresa) }}
+        {{ field('Correo Empresa', practica.correo_empresa) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 4: Datos Personales                                              #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-id-card" style="color: var(--accent);"></i> Datos Personales
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field('Generación', practica.generacion) }}
+        {{ field('H/M', practica.sexo) }}
+        {{ field('Becados', practica.becados) }}
+        {{ field('Monto', practica.monto) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 5: Solicitud de Prácticas                                        #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-signature" style="color: var(--accent);"></i> Solicitud de Prácticas
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        {{ field_badge('S. PRÁC', practica.s_prac, 'Entregado' if practica.s_prac == 'SI' else 'Pendiente') }}
+        {{ field_date('S. PRÁC. (Fecha)', practica.s_prac_fecha_excel) }}
+        {{ field_date('F. Inicio', practica.f_inicio) }}
+        {{ field('Día', practica.f_inicio_dia) }}
+        {{ field('Mes', practica.f_inicio_mes) }}
+        {{ field('Año', practica.f_inicio_anio) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 6: Carta de Presentación                                         #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-envelope-open-text" style="color: var(--accent);"></i> Carta de Presentación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        {{ field_badge('C.PRES.', practica.c_pres, 'Entregado' if practica.c_pres == 'SI' else 'Pendiente') }}
+        {{ field_date('C.PRES. (Fecha)', practica.c_pres_fecha_excel) }}
+        {{ field_date('F.C.P', practica.f_cp) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 7: Carta de Aceptación                                           #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-handshake" style="color: var(--accent);"></i> Carta de Aceptación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        {{ field_badge('C. ACEP', practica.c_acep, 'Entregado' if practica.c_acep == 'SI' else 'Pendiente') }}
+        {{ field_date('C. ACEP. (Fecha)', practica.c_acep_fecha_excel) }}
+        {{ field_date('F.C.A', practica.f_ca) }}
+        {{ field('Día', practica.f_ca_dia) }}
+        {{ field('Mes', practica.f_ca_mes) }}
+        {{ field('Año', practica.f_ca_anio) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 8: Plan de Trabajo                                               #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-list-check" style="color: var(--accent);"></i> Plan de Trabajo
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        {{ field_badge('P. TRABJ', practica.p_trabj, 'Entregado' if practica.p_trabj == 'SI' else 'Pendiente') }}
+        {{ field_date('P. TRABJ. (Fecha)', practica.p_trabj_fecha_excel) }}
+        {{ field_date('F. P.TR', practica.f_ptr) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 9: Informe Intermedio                                             #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-lines" style="color: var(--accent);"></i> Informe Intermedio
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field_badge('I. INTER', practica.i_inter, 'Entregado' if practica.i_inter == 'SI' else 'Pendiente') }}
+        {{ field_date('I. INTER. (Fecha)', practica.i_inter_fecha_excel) }}
+        {{ field_date('F.I.I.', practica.f_ii) }}
+        {{ field_date('F.L. I.I. (Fecha Límite)', practica.f_l_ii) }}
+        {{ field_badge('Estado', practica.estado, practica.estado) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 10: Informe Final                                                #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-file-circle-check" style="color: var(--accent);"></i> Informe Final
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field_badge('INF. FINAL', practica.inf_final, 'Entregado' if practica.inf_final == 'SI' else 'Pendiente') }}
+        {{ field('INF. FINAL (Valor)', practica.inf_final_valor) }}
+        {{ field_date('F.I.FINAL', practica.f_i_final) }}
+        {{ field_badge('Estado Inf. Final', practica.estado_inf_final, practica.estado_inf_final) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 11: Revisión-Entrega Final                                       #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-clipboard-check" style="color: var(--accent);"></i> Revisión-Entrega Final
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        {{ field_badge('R-E-FINAL', practica.r_e_final, 'Entregado' if practica.r_e_final == 'SI' else 'Pendiente') }}
+        {{ field('R-E-FINAL (Valor)', practica.r_e_final_valor) }}
+        {{ field_date('F.R-E FINAL', practica.f_re_final) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 12: Constancia de Terminación                                     #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-award" style="color: var(--accent);"></i> Constancia de Terminación
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+        {{ field_badge('CONS.T', practica.cons_t, 'Entregado' if practica.cons_t == 'SI' else 'Pendiente') }}
+        {{ field('C.T (Valor)', practica.c_t_valor) }}
+        {{ field_date('F.C.T', practica.f_ct) }}
+        {{ field('Día', practica.f_ct_dia) }}
+        {{ field('Mes', practica.f_ct_mes) }}
+        {{ field('Año', practica.f_ct_anio) }}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# SECCIÓN 13: Cierre del Proceso                                           #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<div class="glass-card" style="margin-bottom: 40px;">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+        <i class="fa-solid fa-flag-checkered" style="color: var(--accent);"></i> Cierre del Proceso
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        {{ field('Promedio', practica.promedio) }}
+        {{ field('Tiempo del Proceso', practica.tiempo_proceso) }}
+        {{ field('Carpeta', practica.carpeta) }}
+        {{ field('Paso por Constancia', practica.paso_por_constancia) }}
+        {{ field('P.C.', practica.pc) }}
+    </div>
+    {% if practica.resumen_observaciones %}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
+        <strong style="color: var(--text-muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em;">Resumen / Observaciones</strong>
+        <div style="margin-top: 6px; font-size: 0.95rem; line-height: 1.6;">{{ practica.resumen_observaciones }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

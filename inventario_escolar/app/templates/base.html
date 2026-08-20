@@ -30,7 +30,7 @@
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Practicas'] %}
-            <li><a href="{{ url_for('practicas.lista') }}" class="sidebar-link"><i class="fa-solid fa-briefcase"></i> Prácticas</a></li>
+            <li><a href="{{ url_for('practicas.menu') }}" class="sidebar-link"><i class="fa-solid fa-briefcase"></i> Prácticas</a></li>
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Servicio'] %}
