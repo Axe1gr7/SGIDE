@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% block title %}Vinculación — Inicio{% endblock %}
+
+{% block head %}
+<style>
+/* ══════════════════════════════════════════════════════
+   LIQUID GLASS — Variables y estilos para Vinculación
+   ══════════════════════════════════════════════════════ */
+:root {
+  --vin-blur: blur(20px) saturate(180%);
+  --vin-glass: rgba(255,255,255,0.18);
+  --vin-border: rgba(255,255,255,0.35);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --vin-radius: 20px;
+}
+[data-theme="dark"] {
+  --vin-glass: rgba(15,23,42,0.55);
+  --vin-border: rgba(255,255,255,0.12);
+  --vin-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --vin-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.vin-hero {
+  position: relative;
+  padding: 40px 0 32px;
+  margin-bottom: 36px;
+  overflow: hidden;
+}
+.vin-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(99,102,241,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(168,85,247,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.vin-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.vin-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.vin-hero-icon {
+  width: 56px; height: 56px;
+  background: var(--accent-gradient);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+  flex-shrink: 0;
+}
+.vin-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.vin-hero p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.vin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 36px;
+}
+.vin-stat-card {
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: var(--vin-radius);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--vin-shadow);
+  transition: transform 0.3s ease;
+}
+.vin-stat-card:hover {
+  transform: translateY(-4px);
+}
+.vin-stat-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; color: #fff;
+  flex-shrink: 0;
+}
+.vin-stat-info { display: flex; flex-direction: column; }
+.vin-stat-number { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+.vin-stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+
+.vin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+.vin-card {
+  position: relative;
+  background: var(--vin-glass);
+  backdrop-filter: var(--vin-blur);
+  -webkit-backdrop-filter: var(--vin-blur);
+  border: 1px solid var(--vin-border);
+  border-radius: var(--vin-radius);
+  box-shadow: var(--vin-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1),
+              box-shadow 0.35s cubic-bezier(.22,1,.36,1);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  height: 100%;
+}
+.vin-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--card-accent, var(--accent-gradient));
+  border-radius: var(--vin-radius) var(--vin-radius) 0 0;
+  opacity: 0.9;
+}
+.vin-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--vin-hover-shadow);
+}
+.vin-card-header {
+  padding: 28px 28px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex: 1;
+}
+.vin-card-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  background: var(--card-icon-bg, var(--accent-gradient));
+}
+.vin-card-meta { flex: 1; min-width: 0; }
+.vin-card-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.vin-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.vin-card-footer {
+  padding: 16px 28px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--vin-border);
+}
+.vin-card-action-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.vin-card-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(79,70,229,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; color: var(--accent);
+  transition: all 0.2s;
+}
+.vin-card:hover .vin-card-arrow {
+  background: var(--accent-gradient);
+  color: #fff;
+  transform: translateX(3px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vin-hero">
+  <div class="vin-hero-content">
+    <div class="vin-hero-title">
+      <div class="vin-hero-icon">
+        <i class="fa-solid fa-link"></i>
+      </div>
+      <div>
+        <h1>Departamento de Vinculación</h1>
+        <p>Gestiona programas externos, convenios y estancias académicas de los estudiantes.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel de Estadísticas -->
+<div class="vin-stats">
+  <div class="vin-stat-card">
+    <div class="vin-stat-icon" style="background: linear-gradient(135deg, #4f46e5, #6366f1); box-shadow: 0 4px 15px rgba(79,70,229,0.3);">
+      <i class="fa-solid fa-users"></i>
+    </div>
+    <div class="vin-stat-info">
+      <span class="vin-stat-number">{{ stats.total_alumnos }}</span>
+      <span class="vin-stat-label">Total Alumnos</span>
+    </div>
+  </div>
+
+  <div class="vin-stat-card">
+    <div class="vin-stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+      <i class="fa-solid fa-check-double"></i>
+    </div>
+    <div class="vin-stat-info">
+      <span class="vin-stat-number">{{ stats.total_aptos }}</span>
+      <span class="vin-stat-label">Aptos para Estancia</span>
+    </div>
+  </div>
+
+  <div class="vin-stat-card">
+    <div class="vin-stat-icon" style="background: linear-gradient(135deg, #3b82f6, #60a5fa); box-shadow: 0 4px 15px rgba(59,130,246,0.3);">
+      <i class="fa-solid fa-graduation-cap"></i>
+    </div>
+    <div class="vin-stat-info">
+      <span class="vin-stat-number">{{ stats.total_estancias }}</span>
+      <span class="vin-stat-label">Estancias Activas</span>
+    </div>
+  </div>
+
+  <div class="vin-stat-card">
+    <div class="vin-stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 4px 15px rgba(245,158,11,0.3);">
+      <i class="fa-solid fa-school"></i>
+    </div>
+    <div class="vin-stat-info">
+      <span class="vin-stat-number">{{ stats.total_universidades }}</span>
+      <span class="vin-stat-label">Universidades</span>
+    </div>
+  </div>
+</div>
+
+<!-- Cuadrícula de Apartados -->
+<div class="vin-grid">
+  <!-- Card 1: Gestión de Documentos -->
+  <a href="{{ url_for('vinculacion.lista') }}" class="vin-card" style="--card-accent: linear-gradient(to right, #4f46e5, #6366f1);">
+    <div class="vin-card-header">
+      <div class="vin-card-icon" style="--card-icon-bg: linear-gradient(135deg, #4f46e5, #6366f1);">
+        <i class="fa-solid fa-folder-open"></i>
+      </div>
+      <div class="vin-card-meta">
+        <h3 class="vin-card-name">Gestión de Documentos</h3>
+        <p class="vin-card-desc">Administra expedientes corporativos, convenios, convocatorias y carpetas institucionales generales de vinculación.</p>
+      </div>
+    </div>
+    <div class="vin-card-footer">
+      <span class="vin-card-action-text">Entrar a Documentación</span>
+      <div class="vin-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
+
+  <!-- Card 2: Consulta de Alumnos -->
+  <a href="{{ url_for('vinculacion.alumnos') }}" class="vin-card" style="--card-accent: linear-gradient(to right, #10b981, #34d399);">
+    <div class="vin-card-header">
+      <div class="vin-card-icon" style="--card-icon-bg: linear-gradient(135deg, #10b981, #34d399);">
+        <i class="fa-solid fa-user-graduate"></i>
+      </div>
+      <div class="vin-card-meta">
+        <h3 class="vin-card-name">Consulta de Alumnos</h3>
+        <p class="vin-card-desc">Monitorea alumnos globalmente, comprueba requisitos e inscribe a estudiantes elegibles en Estancias Universitarias.</p>
+      </div>
+    </div>
+    <div class="vin-card-footer">
+      <span class="vin-card-action-text">Ver Alumnos</span>
+      <div class="vin-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
+
+  <!-- Card 3: Catálogo de Universidades -->
+  <a href="{{ url_for('vinculacion.universidades') }}" class="vin-card" style="--card-accent: linear-gradient(to right, #f59e0b, #fbbf24);">
+    <div class="vin-card-header">
+      <div class="vin-card-icon" style="--card-icon-bg: linear-gradient(135deg, #f59e0b, #fbbf24);">
+        <i class="fa-solid fa-university"></i>
+      </div>
+      <div class="vin-card-meta">
+        <h3 class="vin-card-name">Catálogo de Universidades</h3>
+        <p class="vin-card-desc">Administra el catálogo de instituciones educativas y de investigación nacionales y extranjeras asociadas.</p>
+      </div>
+    </div>
+    <div class="vin-card-footer">
+      <span class="vin-card-action-text">Administrar Catálogo</span>
+      <div class="vin-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
+</div>
+{% endblock %}

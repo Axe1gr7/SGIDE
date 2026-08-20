@@ -38,7 +38,7 @@
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Vinculacion'] %}
-            <li><a href="{{ url_for('vinculacion.lista') }}" class="sidebar-link"><i class="fa-solid fa-link"></i> Vinculación</a></li>
+            <li><a href="{{ url_for('vinculacion.inicio') }}" class="sidebar-link"><i class="fa-solid fa-link"></i> Vinculación</a></li>
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Practicas', 'Servicio'] %}

@@ -1,7 +1,7 @@
 import click
 from app import create_app
 from app.extensions import db
-from app.models import Role, User, Carrera, Alumno, Expediente, Documento, Dependencia
+from app.models import Role, User, Carrera, Alumno, Expediente, Documento, Dependencia, Universidad
 from app.services.logic_expediente import registrar_alumno
 
 app = create_app()
@@ -13,6 +13,17 @@ def seed_db():
     # 0. ASEGURAR QUE LAS TABLAS EXISTAN
     click.echo('🔨 Creando tablas en la base de datos si no existen...')
     db.create_all()
+
+    # --- ALTERAR TABLAS SI NO EXISTEN (MIGRACIÓN MANUAL DENTRO DE DOCKER) ---
+    click.echo('🔧 Verificando columnas de estancias en tabla expedientes...')
+    try:
+        db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS universidad_id INTEGER REFERENCES universidades(id) ON DELETE SET NULL"))
+        db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS periodo VARCHAR(100)"))
+        db.session.commit()
+        click.echo('✅ Columnas verificadas.')
+    except Exception as e:
+        db.session.rollback()
+        click.echo(f'⚠️ Error al alterar la tabla expedientes: {e}')
     
     # --- 1. BORRAR TODOS LOS DATOS EXISTENTES ---
     # Borrar en orden inverso de dependencias (FK)
@@ -20,6 +31,7 @@ def seed_db():
     db.session.query(Documento).delete()
     db.session.query(Expediente).delete()
     db.session.query(Alumno).delete()
+    db.session.query(Universidad).delete()
     db.session.query(Dependencia).delete()
     db.session.query(User).delete()
     db.session.query(Carrera).delete()
@@ -69,6 +81,19 @@ def seed_db():
         dependencias.append(dep)
     db.session.commit()
     click.echo('✅ Dependencias de ejemplo creadas.')
+
+    # --- 4.5 CREAR UNIVERSIDADES DE EJEMPLO ---
+    universidades_data = [
+        ('Universidad Autónoma Metropolitana (UAM)', 'Av. San Pablo 180, CDMX', 'Lic. Eduardo Ortiz', '555-0201', 'contacto@uam.mx'),
+        ('Universidad Nacional Autónoma de México (UNAM)', 'Ciudad Universitaria, CDMX', 'Dra. Patricia Silva', '555-0202', 'vinculacion@unam.mx'),
+        ('Instituto Politécnico Nacional (IPN)', 'Av. Luis Enrique Erro, CDMX', 'Ing. Roberto Méndez', '555-0203', 'estancias@ipn.mx'),
+        ('Tecnológico de Monterrey (ITESM)', 'Av. Eugenio Garza Sada 2501, Monterrey', 'Mtra. Ana Garza', '555-0204', 'vinculacion@tec.mx'),
+    ]
+    for (nombre, domicilio, contacto, telefono, correo) in universidades_data:
+        uni = Universidad(nombre=nombre, domicilio=domicilio, contacto=contacto, telefono=telefono, correo=correo)
+        db.session.add(uni)
+    db.session.commit()
+    click.echo('✅ Universidades de ejemplo creadas.')
 
     # --- 5. CREAR USUARIOS DE EJEMPLO (uno por cada rol) ---
     usuarios_data = [

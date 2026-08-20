@@ -11,7 +11,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Use /uploads in Docker (to avoid reloader), or local 'uploads' if running directly
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads'))
-    TEMPLATES_WORD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates_word')
+    TEMPLATES_WORD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates_word')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     # Año actual para estructurar las carpetas de documentos por año
     ANIO_ACTUAL = os.environ.get('ANIO_ACTUAL', datetime.now().year)

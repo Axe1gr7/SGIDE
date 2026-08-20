@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+{% block title %}Consulta de Alumnos - Vinculación{% endblock %}
+
+{% block head %}
+<style>
+/* Modals custom styling aligned with Vinculación design system */
+.vin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.vin-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.vin-modal {
+  background: var(--bg-glass);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 450px;
+  padding: 30px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.vin-modal-overlay.active .vin-modal { transform: translateY(0) scale(1); }
+.vin-modal h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.vin-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-badge.completed { background: rgba(16,185,129,0.15); color: #10b981; }
+.status-badge.pending { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.status-badge.not-eligible { background: rgba(239,68,68,0.15); color: #ef4444; }
+.status-badge.eligible { background: rgba(59,130,246,0.15); color: #3b82f6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <a href="{{ url_for('vinculacion.inicio') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al Inicio</a>
+        <h2 style="margin-top: 5px;">Consulta Global de Alumnos</h2>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="glass-card" style="margin-bottom: 24px;">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 2; min-width: 250px;">
+            <label class="form-label">Buscar Alumno</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula del alumno...">
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+            <label class="form-label">Carrera</label>
+            <select name="carrera_filter" class="glass-select">
+                <option value="">Todas</option>
+                {% for c in carreras %}
+                <option value="{{ c.id }}" {% if carrera_filter == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label">Estatus</label>
+            <select name="estatus_filter" class="glass-select">
+                <option value="">Todos</option>
+                <option value="Activo" {% if estatus_filter == 'Activo' %}selected{% endif %}>Activo</option>
+                <option value="Inactivo" {% if estatus_filter == 'Inactivo' %}selected{% endif %}>Inactivo</option>
+                <option value="Egresado" {% if estatus_filter == 'Egresado' %}selected{% endif %}>Egresado</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 10px; min-width: 200px;">
+            <input type="checkbox" name="aptos_filter" id="aptos_filter" value="1" {% if aptos_filter %}checked{% endif %}>
+            <label for="aptos_filter" style="font-weight: 500; cursor: pointer; font-size: 0.9rem;">Solo aptos para Estancia</label>
+        </div>
+        <div>
+            <button type="submit" class="glass-btn">Filtrar</button>
+            <a href="{{ url_for('vinculacion.alumnos') }}" class="glass-btn glass-btn-outline">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th>Matrícula</th>
+                <th>Carrera / Generación</th>
+                <th>Servicio Social</th>
+                <th>Prácticas Prof.</th>
+                <th>Estatus Estancia</th>
+                <th>Acción / Universidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in alumnos %}
+            {% set a = row.alumno %}
+            {% set exp_v = row.exp_v %}
+            {% set is_apto = row.is_apto %}
+            <tr>
+                <td style="font-weight: 600; color: var(--text-primary);">
+                    {{ a.nombre }}
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+                        Estatus: <span class="badge badge-{{ a.estatus }}">{{ a.estatus }}</span>
+                    </div>
+                </td>
+                <td style="font-family: monospace; font-weight: 500;">{{ a.matricula or '-' }}</td>
+                <td>
+                    {{ a.carrera.nombre if a.carrera else 'Sin carrera' }}
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                        Gen: {{ a.generacion_completa }}
+                    </div>
+                </td>
+                <td>
+                    {% if row.has_servicio %}
+                    <span class="status-badge completed">✔ Completado</span>
+                    {% else %}
+                    <span class="status-badge pending">⏳ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.has_practicas %}
+                    <span class="status-badge completed">✔ Completado</span>
+                    {% else %}
+                    <span class="status-badge pending">⏳ Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if exp_v and exp_v.universidad %}
+                    <span class="status-badge completed">🎓 Asignado</span>
+                    {% elif is_apto %}
+                    <span class="status-badge eligible">✨ Apto</span>
+                    {% else %}
+                    <span class="status-badge not-eligible">❌ No apto</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if exp_v and exp_v.universidad %}
+                    <div style="font-weight: 500; font-size: 0.9rem;">
+                        🏫 {{ exp_v.universidad.nombre }}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 8px;">
+                        <span>📅 {{ exp_v.periodo or 'Sin periodo' }}</span>
+                        <a href="{{ url_for('vinculacion.expediente_detalle', id=exp_v.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 2px 8px; font-size: 0.75rem;">Ver Expediente</a>
+                    </div>
+                    {% elif is_apto %}
+                    <button class="glass-btn glass-btn-small" onclick="openAsignarModal({{ a.id }}, '{{ a.nombre|escape }}')">
+                        Asignar Estancia
+                    </button>
+                    {% else %}
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">
+                        Requiere completar SS y Prácticas.
+                    </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">No se encontraron alumnos con los filtros seleccionados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div class="pagination-container" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+    {% if has_prev %}
+    <a href="{{ url_for('vinculacion.alumnos', page=page-1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, aptos_filter='1' if aptos_filter else '') }}" class="glass-btn glass-btn-outline glass-btn-small">« Anterior</a>
+    {% endif %}
+    <span class="glass-btn glass-btn-outline glass-btn-small disabled" style="cursor: default;">Página {{ page }} de {{ total_pages }}</span>
+    {% if has_next %}
+    <a href="{{ url_for('vinculacion.alumnos', page=page+1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, aptos_filter='1' if aptos_filter else '') }}" class="glass-btn glass-btn-outline glass-btn-small">Siguiente »</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- MODAL ASIGNAR ESTANCIA -->
+<div class="vin-modal-overlay" id="modalAsignar">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-graduation-cap" style="color: var(--accent);"></i> Asignar Estancia Universitaria</h3>
+        <p style="margin-bottom: 20px; font-size: 0.95rem; color: var(--text-muted);">Estudiante: <strong id="modal_alumno_nombre" style="color: var(--text-primary);"></strong></p>
+        <form method="POST" action="{{ url_for('vinculacion.asignar_estancia') }}">
+            <input type="hidden" name="alumno_id" id="modal_alumno_id">
+            <div class="form-group">
+                <label class="form-label">Seleccionar Universidad *</label>
+                <select name="universidad_id" class="glass-select" required>
+                    <option value="">Selecciona una opción...</option>
+                    {% for u in universidades %}
+                    <option value="{{ u.id }}">{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Periodo *</label>
+                <input type="text" name="periodo" class="glass-input" required placeholder="Ej. Enero - Junio 2026">
+            </div>
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalAsignar')">Cancelar</button>
+                <button type="submit" class="glass-btn">Confirmar Asignación</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Event listeners for close when clicking overlay
+document.querySelectorAll('.vin-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+
+function openAsignarModal(id, nombre) {
+    document.getElementById('modal_alumno_id').value = id;
+    document.getElementById('modal_alumno_nombre').innerText = nombre;
+    openModal('modalAsignar');
+}
+
+// Escape key to close modals
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.vin-modal-overlay.active').forEach(o => closeModal(o.id));
+    }
+});
+</script>
+{% endblock %}

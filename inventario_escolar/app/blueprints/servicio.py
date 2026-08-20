@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Expediente, Documento, Carrera, Alumno, Dependencia
 from app.decorators import roles_required, active_query
-from app.services.logic_word import generar_documento_word
+from app.services.logic_word import generar_documento_pdf, generar_documento_word
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_excel import procesar_excel
 from app.services.logic_zip import procesar_zip_pdfs
@@ -103,8 +103,17 @@ def actualizar_dependencia(id):
                 expediente.sector = dependencia.sector
             else:
                 expediente.sector = None
+                
+            # Autogenerar documentos
+            documentos_auto = ['FSS2 carta de presentacion', 'FSS4 Carta de aceptacion', 'FSS8 Constancia terminacion de ss']
+            for doc_nombre in documentos_auto:
+                existe = active_query(Documento).filter_by(expediente_id=id, nombre_formato=doc_nombre).first()
+                if not existe:
+                    nuevo_doc = Documento(expediente_id=id, nombre_formato=doc_nombre, estado='Pendiente')
+                    db.session.add(nuevo_doc)
+            
             db.session.commit()
-            flash('Dependencia asignada.', 'success')
+            flash('Dependencia asignada y documentos inicializados.', 'success')
         else:
             flash('Dependencia no encontrada.', 'danger')
     else:
@@ -125,6 +134,7 @@ def crear_documento(id):
         ruta_archivo = None
         if archivo and archivo.filename:
             ruta_archivo = guardar_documento(expediente, archivo)
+            estado = 'Entregado'
 
         doc = Documento(expediente_id=id, nombre_formato=nombre_formato, estado=estado, observaciones=observaciones, ruta_archivo=ruta_archivo)
         db.session.add(doc)
@@ -152,6 +162,12 @@ def editar_documento(id, doc_id):
 
         if archivo and archivo.filename:
             doc.ruta_archivo = guardar_documento(expediente, archivo)
+            doc.estado = 'Entregado'
+
+        # Actualizar estatus del alumno si es la constancia final
+        if doc.nombre_formato == 'FSS8 Constancia terminacion de ss' and doc.estado == 'Entregado':
+            if expediente.alumno:
+                expediente.alumno.estatus = 'Servicio Finalizado'
 
         db.session.commit()
         flash('Documento actualizado.', 'success')
@@ -190,6 +206,20 @@ def generar_word(id):
         return send_file(output_path, as_attachment=True, download_name=filename)
     except Exception as e:
         flash(f'Error al generar el documento: {str(e)}', 'danger')
+        return redirect(url_for(f'{MODULO_PREFIX}.detalle', id=id))
+
+@servicio_bp.route('/<int:id>/documento/<int:doc_id>/generar-word', methods=['POST'])
+def generar_word_documento(id, doc_id):
+    expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
+    doc = active_query(Documento).filter_by(id=doc_id, expediente_id=id).first_or_404()
+    
+    template_name = f"{doc.nombre_formato}.docx"
+    
+    try:
+        output_path, filename = generar_documento_pdf(expediente.alumno_id, MODULO_TIPO, template_name=template_name)
+        return send_file(output_path, as_attachment=True, download_name=filename)
+    except Exception as e:
+        flash(f'Error al generar el formato {doc.nombre_formato}: {str(e)}', 'danger')
         return redirect(url_for(f'{MODULO_PREFIX}.detalle', id=id))
 
 @servicio_bp.route('/importar', methods=['GET', 'POST'])

@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Catálogo de Universidades{% endblock %}
+
+{% block head %}
+<style>
+/* Modals custom styling aligned with Vinculación design system */
+.vin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.vin-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.vin-modal {
+  background: var(--bg-glass);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  padding: 30px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.vin-modal-overlay.active .vin-modal { transform: translateY(0) scale(1); }
+.vin-modal h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.vin-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <a href="{{ url_for('vinculacion.inicio') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al Inicio</a>
+        <h2 style="margin-top: 5px;">Catálogo de Universidades</h2>
+    </div>
+    <div>
+        <button id="btnNuevaUni" class="glass-btn">➕ Nueva Universidad</button>
+    </div>
+</div>
+
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Domicilio</th>
+                <th>Contacto</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in universidades %}
+            <tr>
+                <td style="font-weight: 600; color: var(--text-primary);">{{ u.nombre }}</td>
+                <td>{{ u.domicilio or '-' }}</td>
+                <td>{{ u.contacto or '-' }}</td>
+                <td>{{ u.telefono or '-' }}</td>
+                <td>{{ u.correo or '-' }}</td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="glass-btn glass-btn-outline glass-btn-small" 
+                                onclick="openEditModal({{ u.id }}, '{{ u.nombre|escape }}', '{{ (u.domicilio or '')|escape }}', '{{ (u.contacto or '')|escape }}', '{{ (u.telefono or '')|escape }}', '{{ (u.correo or '')|escape }}')">
+                            Editar
+                        </button>
+                        <button class="glass-btn glass-btn-danger glass-btn-small" 
+                                onclick="openDeleteModal({{ u.id }}, '{{ u.nombre|escape }}')">
+                            Eliminar
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">No hay universidades registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- MODAL NUEVO -->
+<div class="vin-modal-overlay" id="modalNuevo">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-university" style="color: var(--accent);"></i> Registrar Universidad</h3>
+        <form method="POST" action="{{ url_for('vinculacion.crear_university' if 'crear_university' in request.url_rule.endpoint else 'vinculacion.crear_universidad') }}">
+            <div class="form-group">
+                <label class="form-label">Nombre de la Institución *</label>
+                <input type="text" name="nombre" class="glass-input" required placeholder="Ej. Universidad Autónoma Metropolitana">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domicilio</label>
+                <input type="text" name="domicilio" class="glass-input" placeholder="Dirección completa...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Persona de Contacto</label>
+                <input type="text" name="contacto" class="glass-input" placeholder="Nombre del encargado/a...">
+            </div>
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" name="telefono" class="glass-input" placeholder="Teléfono institucional...">
+                </div>
+                <div>
+                    <label class="form-label">Correo Electrónico</label>
+                    <input type="email" name="correo" class="glass-input" placeholder="correo@institucion.edu">
+                </div>
+            </div>
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalNuevo')">Cancelar</button>
+                <button type="submit" class="glass-btn">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="vin-modal-overlay" id="modalEditar">
+    <div class="vin-modal">
+        <h3><i class="fa-solid fa-pen-to-square" style="color: var(--accent);"></i> Editar Universidad</h3>
+        <form method="POST" id="formEditar">
+            <div class="form-group">
+                <label class="form-label">Nombre de la Institución *</label>
+                <input type="text" name="nombre" id="edit_nombre" class="glass-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domicilio</label>
+                <input type="text" name="domicilio" id="edit_domicilio" class="glass-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Persona de Contacto</label>
+                <input type="text" name="contacto" id="edit_contacto" class="glass-input">
+            </div>
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" name="telefono" id="edit_telefono" class="glass-input">
+                </div>
+                <div>
+                    <label class="form-label">Correo Electrónico</label>
+                    <input type="email" name="correo" id="edit_correo" class="glass-input">
+                </div>
+            </div>
+            <div class="vin-modal-footer">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEditar')">Cancelar</button>
+                <button type="submit" class="glass-btn">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ELIMINAR -->
+<div class="vin-modal-overlay" id="modalEliminar">
+    <div class="vin-modal" style="max-width: 400px; text-align: center;">
+        <h3 style="justify-content: center; color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Confirmar</h3>
+        <p>¿Estás seguro de que deseas eliminar la universidad <strong id="delete_nombre"></strong> del catálogo?</p>
+        <p class="text-muted" style="font-size: 0.85rem; margin-top: 10px;">Esta acción no se puede deshacer.</p>
+        <form method="POST" id="formEliminar">
+            <div class="vin-modal-footer" style="justify-content: center;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalEliminar')">Cancelar</button>
+                <button type="submit" class="glass-btn glass-btn-danger">Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Event listeners for close when clicking overlay
+document.querySelectorAll('.vin-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+
+document.getElementById('btnNuevaUni').addEventListener('click', () => openModal('modalNuevo'));
+
+function openEditModal(id, nombre, domicilio, contacto, telefono, correo) {
+    document.getElementById('formEditar').action = `/vinculacion/universidades/${id}/editar`;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_domicilio').value = domicilio;
+    document.getElementById('edit_contacto').value = contacto;
+    document.getElementById('edit_telefono').value = telefono;
+    document.getElementById('edit_correo').value = correo;
+    openModal('modalEditar');
+}
+
+function openDeleteModal(id, nombre) {
+    document.getElementById('formEliminar').action = `/vinculacion/universidades/${id}/eliminar`;
+    document.getElementById('delete_nombre').innerText = nombre;
+    openModal('modalEliminar');
+}
+
+// Escape key to close modals
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.vin-modal-overlay.active').forEach(o => closeModal(o.id));
+    }
+});
+</script>
+{% endblock %}
