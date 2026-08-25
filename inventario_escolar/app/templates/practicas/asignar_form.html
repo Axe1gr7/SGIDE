@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Asignar Prácticas - {{ alumno.nombre }}{% endblock %}
+{% block title %}{{ form_title or 'Asignar Prácticas' }} - {{ alumno.nombre }}{% endblock %}
 
 {% block content %}
 <div style="margin-bottom: 24px;">
     <a href="{{ url_for('practicas.alumnos') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista de alumnos</a>
-    <h2 style="margin-top: 5px;">Asignar Prácticas Profesionales</h2>
+    <h2 style="margin-top: 5px;">{{ form_title or 'Asignar Prácticas Profesionales' }}</h2>
     <p style="color: var(--text-muted); font-size: 0.9rem;">
         Alumno: <strong style="color: var(--text-primary);">{{ alumno.nombre }}</strong> — Matrícula: <strong style="color: var(--text-primary);">{{ alumno.matricula }}</strong>
     </p>
 </div>
 
-<form method="POST" action="{{ url_for('practicas.asignar', alumno_id=alumno.id) }}">
+<form method="POST" action="{{ form_action or url_for('practicas.asignar', alumno_id=alumno.id) }}">
 
 {# ══════════════════════════════════════════════════════════════════════════ #}
 {# SECCIÓN 1: Datos del Alumno                                              #}
@@ -22,11 +22,11 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">No. Registro</label>
-            <input type="number" name="no_registro" class="glass-input" placeholder="Ej: 002">
+            <input type="number" name="no_registro" class="glass-input" value="{{ prefill.no_registro or '' }}" placeholder="Ej: 002">
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Consecutivo</label>
-            <input type="number" name="consecutivo" class="glass-input" placeholder="Ej: 002">
+            <input type="number" name="consecutivo" class="glass-input" value="{{ prefill.consecutivo or '' }}" readonly>
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">No. Constancia</label>
@@ -124,8 +124,11 @@
             <select name="empresa" class="glass-select">
                 <option value="">Seleccionar...</option>
                 {% for dep in dependencias %}
-                <option value="{{ dep.nombre }}">{{ dep.nombre }}</option>
+                <option value="{{ dep.nombre }}" data-sector="{{ dep.sector or '' }}" data-telefono="{{ dep.telefono or '' }}" data-domicilio="{{ dep.domicilio or '' }}" data-correo="{{ dep.correo or '' }}">{{ dep.nombre }}</option>
                 {% endfor %}
+                {% if practica and practica.empresa and practica.empresa not in dependencias|map(attribute='nombre')|list %}
+                <option value="{{ practica.empresa }}">{{ practica.empresa }}</option>
+                {% endif %}
                 <option value="Otra">Otra (Registrar primero en Dependencias)</option>
             </select>
         </div>
@@ -516,9 +519,74 @@
         <i class="fa-solid fa-xmark"></i> Cancelar
     </a>
     <button type="submit" class="glass-btn">
-        <i class="fa-solid fa-floppy-disk"></i> Guardar Registro
+        <i class="fa-solid fa-floppy-disk"></i> {{ form_submit or 'Guardar Registro' }}
     </button>
 </div>
 
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const practicaData = {{ (practica_data or {})|tojson }};
+    Object.entries(practicaData).forEach(function ([name, value]) {
+        const field = document.querySelector('[name="' + name + '"]');
+        if (field && value !== null && value !== undefined) field.value = value;
+    });
+
+    const empresa = document.querySelector('[name="empresa"]');
+    const dependenciaFields = {
+        sector: document.querySelector('[name="sector"]'),
+        tel_empresa: document.querySelector('[name="tel_empresa"]'),
+        direccion_empresa: document.querySelector('[name="direccion_empresa"]'),
+        correo_empresa: document.querySelector('[name="correo_empresa"]')
+    };
+    if (empresa) {
+        empresa.addEventListener('change', function () {
+            const option = empresa.options[empresa.selectedIndex];
+            if (!option || !option.dataset.sector && !option.dataset.telefono && !option.dataset.domicilio && !option.dataset.correo) return;
+            dependenciaFields.sector.value = option.dataset.sector || '';
+            dependenciaFields.tel_empresa.value = option.dataset.telefono || '';
+            dependenciaFields.direccion_empresa.value = option.dataset.domicilio || '';
+            dependenciaFields.correo_empresa.value = option.dataset.correo || '';
+        });
+    }
+
+    const meses = [
+        '', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+
+    const gruposFecha = [
+        ['f_inicio', 'f_inicio_dia', 'f_inicio_mes', 'f_inicio_anio'],
+        ['f_ca', 'f_ca_dia', 'f_ca_mes', 'f_ca_anio'],
+        ['f_ct', 'f_ct_dia', 'f_ct_mes', 'f_ct_anio']
+    ];
+
+    gruposFecha.forEach(function (grupo) {
+        const fecha = document.querySelector('[name="' + grupo[0] + '"]');
+        const dia = document.querySelector('[name="' + grupo[1] + '"]');
+        const mes = document.querySelector('[name="' + grupo[2] + '"]');
+        const anio = document.querySelector('[name="' + grupo[3] + '"]');
+        if (!fecha || !dia || !mes || !anio) return;
+
+        function sincronizarFecha() {
+            if (!fecha.value) {
+                dia.value = '';
+                mes.value = '';
+                anio.value = '';
+                return;
+            }
+            const partes = fecha.value.split('-');
+            anio.value = partes[0];
+            dia.value = Number(partes[2]);
+            mes.value = meses[Number(partes[1])];
+        }
+
+        fecha.addEventListener('change', sincronizarFecha);
+        sincronizarFecha();
+    });
+});
+</script>
 {% endblock %}

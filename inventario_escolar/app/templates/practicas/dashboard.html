@@ -119,13 +119,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const chartEstatus = new Chart(ctxEstatus, {
         type: 'doughnut',
         data: {
-            labels: ['Concluido', 'En Trámite', 'Sin Estatus'],
+            labels: ['Apto', 'En Trámite', 'Concluido', 'Baja', 'Sin Estatus'],
             datasets: [{
-                data: [{{ concluidas }}, {{ en_tramite }}, {{ sin_estatus }}],
+                data: [{{ aptos }}, {{ en_tramite }}, {{ concluidas }}, {{ estatus_counts['BAJA'] }}, {{ sin_estatus }}],
                 backgroundColor: [
-                    'rgba(16, 185, 129, 0.85)', // Verde
-                    'rgba(245, 158, 11, 0.85)', // Naranja Warning
-                    'rgba(148, 163, 184, 0.85)' // Gris Neutral
+                    'rgba(59, 130, 246, 0.85)',
+                    'rgba(245, 158, 11, 0.85)',
+                    'rgba(16, 185, 129, 0.85)',
+                    'rgba(239, 68, 68, 0.85)',
+                    'rgba(148, 163, 184, 0.85)'
                 ],
                 borderWidth: 0,
                 spacing: 4,

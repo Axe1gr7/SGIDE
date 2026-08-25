@@ -19,12 +19,9 @@ with app.app_context():
         sys.exit(1)
 " || NEED_SEED=1
 
-if [ "$NEED_SEED" = "1" ]; then
-  echo 'Ejecutando creacion de tablas y seeders...'
-  flask seed-db
-else
-  echo 'La base de datos ya tiene registros, omitiendo seeders.'
-fi
+echo 'Ejecutando verificacion idempotente de tablas y seeders...'
+# seed-db crea/ajusta el esquema y retorna sin borrar datos si ya existe un usuario.
+flask seed-db
 
 echo 'Iniciando servidor...'
 exec flask run --host=0.0.0.0 --port=5000

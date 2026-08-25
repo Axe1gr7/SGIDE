@@ -19,6 +19,9 @@ def seed_db():
     try:
         db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS universidad_id INTEGER REFERENCES universidades(id) ON DELETE SET NULL"))
         db.session.execute(db.text("ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS periodo VARCHAR(100)"))
+        db.session.execute(db.text("ALTER TABLE dependencias ADD COLUMN IF NOT EXISTS rubro VARCHAR(150)"))
+        db.session.execute(db.text("ALTER TABLE dependencias ADD COLUMN IF NOT EXISTS area_interes VARCHAR(200)"))
+        db.session.execute(db.text("ALTER TABLE dependencias ALTER COLUMN sector TYPE VARCHAR(200)"))
         db.session.execute(db.text("ALTER TABLE archivos_submodulo ADD COLUMN IF NOT EXISTS modulo_id INTEGER REFERENCES modulos_vinculacion(id) ON DELETE CASCADE"))
         db.session.execute(db.text("ALTER TABLE archivos_submodulo ALTER COLUMN submodulo_id DROP NOT NULL"))
         db.session.commit()

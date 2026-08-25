@@ -4,11 +4,11 @@
 {% block content %}
 <div class="header-action" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <div>
-        <a href="{{ url_for(modulo_prefix ~ '.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista</a>
+        <a href="{{ url_for('practicas.alumnos') if es_practicas else url_for(modulo_prefix ~ '.lista') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista</a>
         <h2 style="margin-top: 5px;">Expediente: {{ expediente.clave_expediente }}</h2>
     </div>
 
-    <form action="{{ url_for(modulo_prefix ~ '.generar_word', id=expediente.id) }}" method="POST">
+    <form action="{{ url_for('practicas.generar_word_expediente', alumno_id=alumno.id) if es_practicas else url_for(modulo_prefix ~ '.generar_word', id=expediente.id) }}" method="POST">
         <button type="submit" class="glass-btn" style="background: var(--info);">📄 Generar Formato Word</button>
     </form>
 </div>
@@ -47,41 +47,29 @@
         <p style="color: var(--text-muted); margin-bottom: 5px;">
             Empresa actual:
             <strong style="color: var(--text-primary);">
-                {{ expediente.dependencia.nombre if expediente.dependencia else 'Sin asignar' }}
+                {{ dependencia_practicas.nombre if dependencia_practicas else 'Sin asignar' }}
             </strong>
         </p>
 
-        {% if expediente.dependencia %}
+        {% if dependencia_practicas %}
         <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; display: grid; gap: 5px;">
-            {% if expediente.dependencia.domicilio %}
-            <span>📍 {{ expediente.dependencia.domicilio }}</span>
+            {% if dependencia_practicas.domicilio %}
+            <span>📍 {{ dependencia_practicas.domicilio }}</span>
             {% endif %}
-            {% if expediente.dependencia.contacto %}
-            <span>👤 {{ expediente.dependencia.contacto }}</span>
+            {% if dependencia_practicas.contacto %}
+            <span>👤 {{ dependencia_practicas.contacto }}</span>
             {% endif %}
-            {% if expediente.dependencia.telefono %}
-            <span>📞 {{ expediente.dependencia.telefono }}</span>
+            {% if dependencia_practicas.telefono %}
+            <span>📞 {{ dependencia_practicas.telefono }}</span>
             {% endif %}
-            {% if expediente.dependencia.correo %}
-            <span>✉️ {{ expediente.dependencia.correo }}</span>
+            {% if dependencia_practicas.correo %}
+            <span>✉️ {{ dependencia_practicas.correo }}</span>
             {% endif %}
         </div>
         {% else %}
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Sin información de contacto registrada.</p>
         {% endif %}
-
-        <form method="POST" action="{{ url_for(modulo_prefix ~ '.actualizar_dependencia', id=expediente.id) }}">
-            <div class="form-group">
-                <label class="form-label">Empresa / Lugar (catálogo)</label>
-                <select name="dependencia_id" class="glass-select">
-                    <option value="">Sin asignar</option>
-                    {% for d in dependencias %}
-                    <option value="{{ d.id }}" {% if expediente.dependencia_id == d.id %}selected{% endif %}>{{ d.nombre }} ({{ d.domicilio or d.tipo }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="glass-btn">Asignar Empresa</button>
-        </form>
+        <p style="color: var(--text-muted); font-size: 0.82rem;">La dependencia se administra desde Detalles de Prácticas.</p>
     </div>
     {% endif %}
 
@@ -149,7 +137,7 @@
     <div class="glass-card" style="flex: 2; min-width: 400px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
             <h3>Documentos Entregados</h3>
-            <a href="{{ url_for(modulo_prefix ~ '.crear_documento', id=expediente.id) }}" class="glass-btn glass-btn-outline glass-btn-small">➕ Agregar Doc</a>
+            <a href="{{ url_for('practicas.crear_documento_expediente', alumno_id=alumno.id) if es_practicas else url_for(modulo_prefix ~ '.crear_documento', id=expediente.id) }}" class="glass-btn glass-btn-outline glass-btn-small">➕ Agregar Doc</a>
         </div>
 
         {% if documentos %}
@@ -175,20 +163,20 @@
                         <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ doc.observaciones or '-' }}</span></td>
                         <td>
                             {% if doc.ruta_archivo %}
-                            <a href="{{ url_for(modulo_prefix ~ '.descargar_archivo', id=expediente.id, doc_id=doc.id) }}" title="{{ doc.ruta_archivo }}">📎 Descargar</a>
+                            <a href="{{ url_for('practicas.descargar_archivo_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.descargar_archivo', id=expediente.id, doc_id=doc.id) }}" title="{{ doc.ruta_archivo }}">📎 Descargar</a>
                             {% else %}
                             <span style="color: var(--text-muted);">No</span>
                             {% endif %}
                         </td>
                         <td>
                             <div style="display: flex; gap: 5px;">
-                                {% if es_servicio and doc.nombre_formato in ['FSS2 carta de presentacion', 'FSS4 Carta de aceptacion', 'FSS8 Constancia terminacion de ss'] %}
-                                <form method="POST" action="{{ url_for(modulo_prefix ~ '.generar_word_documento', id=expediente.id, doc_id=doc.id) }}" style="display:inline;">
+                                {% if es_practicas or (es_servicio and doc.nombre_formato in ['FSS2 carta de presentacion', 'FSS4 Carta de aceptacion', 'FSS8 Constancia terminacion de ss']) %}
+                                <form method="POST" action="{{ url_for('practicas.generar_word_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.generar_word_documento', id=expediente.id, doc_id=doc.id) }}" style="display:inline;">
                                     <button type="submit" class="glass-btn glass-btn-small" style="padding: 4px 8px; background: var(--info);" title="Imprimir Formato">🖨️</button>
                                 </form>
                                 {% endif %}
-                                <a href="{{ url_for(modulo_prefix ~ '.editar_documento', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 4px 8px;">✎</a>
-                                <button class="glass-btn glass-btn-danger glass-btn-small" style="padding: 4px 8px;" data-delete-url="{{ url_for(modulo_prefix ~ '.eliminar_documento', id=expediente.id, doc_id=doc.id) }}" data-delete-name="este documento">✖</button>
+                                <a href="{{ url_for('practicas.editar_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.editar_documento', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 4px 8px;">✎</a>
+                                <button class="glass-btn glass-btn-danger glass-btn-small" style="padding: 4px 8px;" data-delete-url="{{ url_for('practicas.eliminar_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.eliminar_documento', id=expediente.id, doc_id=doc.id) }}" data-delete-name="este documento">✖</button>
                             </div>
                         </td>
                     </tr>

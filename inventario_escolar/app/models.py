@@ -98,7 +98,9 @@ class Dependencia(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
     tipo = db.Column(db.String(20), nullable=False, default='Ambos')  # Practicas / Servicio / Ambos
-    sector = db.Column(db.String(30), nullable=True)  # Municipal / Estatal / Salud
+    sector = db.Column(db.String(200), nullable=True)
+    rubro = db.Column(db.String(150), nullable=True)
+    area_interes = db.Column(db.String(200), nullable=True)
     domicilio = db.Column(db.String(300), nullable=True)
     contacto = db.Column(db.String(150), nullable=True)
     telefono = db.Column(db.String(50), nullable=True)
@@ -242,7 +244,7 @@ class Practica(db.Model):
     ]
     TURNOS         = ['MATUTINO', 'VESPERTINO']
     CARRERAS       = ['MECATRÓNICA', 'BIOTECNOLOGÍA', 'LOGÍSTICA', 'PROGRAMACIÓN']
-    OBSERVACIONES_OPTS = ['CONCLUIDO', 'EN TRÁMITE']
+    OBSERVACIONES_OPTS = ['APTO', 'EN TRÁMITE', 'CONCLUIDO', 'BAJA']
     PROCESOS       = ['EMPRESA', 'INSTITUCIÓN', 'PROYECTO', 'DUAL', 'CERTIFICACIÓN']
     SECTORES       = [
         'SECTOR PÚBLICO', 'MICROEMPRESAS', 'PEQUEÑAS EMPRESAS',
@@ -253,8 +255,10 @@ class Practica(db.Model):
     OPTS_SNC       = ['SI', 'NO', 'CORREGIR']   # SI / NO / CORREGIR
     ESTADOS        = ['ENTREGADO', 'ATRASADO']
 
-    # ── Clave primaria del sistema ─────────────────────────────────────────
+    # ── Clave primaria y ForeignKey del sistema ─────────────────────────────────────────
     id = db.Column(db.Integer, primary_key=True)
+    alumno_id = db.Column(db.Integer, db.ForeignKey('alumnos.id'), nullable=True)
+    alumno = db.relationship('Alumno', backref='practicas')
 
     # ── Columna 1: No. REGISTRO ────────────────────────────────────────────
     no_registro = db.Column(db.Integer, nullable=True)

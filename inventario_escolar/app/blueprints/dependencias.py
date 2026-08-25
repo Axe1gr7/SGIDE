@@ -46,6 +46,8 @@ def crear():
             nombre = request.form.get('nombre').strip()
             tipo = request.form.get('tipo', 'Ambos')
             sector = request.form.get('sector') or None
+            rubro = request.form.get('rubro') or None
+            area_interes = request.form.get('area_interes') or None
             domicilio = request.form.get('domicilio') or None
             contacto = request.form.get('contacto') or None
             telefono = request.form.get('telefono') or None
@@ -55,6 +57,7 @@ def crear():
                 flash('El nombre de la dependencia es obligatorio.', 'danger')
             else:
                 dep = Dependencia(nombre=nombre, tipo=tipo, sector=sector,
+                                  rubro=rubro, area_interes=area_interes,
                                   domicilio=domicilio, contacto=contacto,
                                   telefono=telefono, correo=correo)
                 db.session.add(dep)
@@ -83,6 +86,8 @@ def editar(id):
                 dependencia.nombre = nombre
                 dependencia.tipo = request.form.get('tipo', 'Ambos')
                 dependencia.sector = request.form.get('sector') or None
+                dependencia.rubro = request.form.get('rubro') or None
+                dependencia.area_interes = request.form.get('area_interes') or None
                 dependencia.domicilio = request.form.get('domicilio') or None
                 dependencia.contacto = request.form.get('contacto') or None
                 dependencia.telefono = request.form.get('telefono') or None
@@ -122,11 +127,14 @@ def importar():
             flash('No se seleccionó ningún archivo.', 'danger')
             return redirect(request.url)
 
-        if file and file.filename.endswith(('.xlsx', '.xls')):
+        if file and file.filename.lower().endswith(('.xlsx', '.xls')):
             filepath = os.path.join('/tmp', secure_filename(file.filename))
             file.save(filepath)
-            resultado = procesar_excel_dependencias(filepath)
-            os.remove(filepath)
+            try:
+                resultado = procesar_excel_dependencias(filepath)
+            finally:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
             if resultado['errores']:
                 flash('Importación completada con algunos errores. Revisa el resumen.', 'warning')
             else:
@@ -134,57 +142,119 @@ def importar():
         else:
             flash('Formato de archivo no válido. Usa .xlsx o .xls', 'danger')
 
-    return render_template('dependencias/importar.html', resultado=resultado)
+    return render_template(
+        'practicas/importar.html',
+        resultado=resultado,
+        columnas_mapa=[],
+        tipo_importacion='dependencias',
+        modulo_label='Prácticas Profesionales',
+        modulo_prefix='practicas',
+    )
 
 
 def procesar_excel_dependencias(filepath):
-    """Procesa un Excel con columnas: nombre, tipo, sector, domicilio, contacto, telefono, correo."""
-    import pandas as pd
+    """Importa la tabla de Dependencias de la hoja activa del libro."""
+    import unicodedata
+    from openpyxl import load_workbook
 
     try:
-        df = pd.read_excel(filepath, engine='openpyxl')
+        workbook = load_workbook(filepath, read_only=True, data_only=True)
+        sheet = workbook.active
+        rows = list(sheet.iter_rows(values_only=True))
+        workbook.close()
     except Exception as e:
         return {'insertados': 0, 'duplicados': 0, 'errores': [f'Error al leer el archivo: {str(e)}']}
 
-    df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
+    def normalizar(valor):
+        texto = '' if valor is None else str(valor).strip().lower()
+        texto = unicodedata.normalize('NFD', texto)
+        texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+        return ''.join(c for c in texto if c.isalnum())
 
-    required = {'nombre'}
-    missing = required - set(df.columns)
-    if missing:
-        return {'insertados': 0, 'duplicados': 0, 'errores': [f'Columnas faltantes: {", ".join(missing)}']}
+    encabezados = {
+        'nombreempresa': 'nombre',
+        'nombredelaempresa': 'nombre',
+        'nombre': 'nombre',
+        'empresa': 'nombre',
+        'sector': 'sector',
+        'rubro': 'rubro',
+        'ubicacion': 'domicilio',
+        'domicilio': 'domicilio',
+        'contacto': 'contacto',
+        'telefono': 'telefono',
+        'areainteres': 'area_interes',
+        'areadeinteres': 'area_interes',
+        'correo': 'correo',
+        'email': 'correo',
+    }
+    header_row = None
+    column_map = {}
+    for row_idx, row in enumerate(rows[:30]):
+        candidate = {}
+        for col_idx, value in enumerate(row):
+            field = encabezados.get(normalizar(value))
+            if field and field not in candidate:
+                candidate[field] = col_idx
+        if 'nombre' in candidate:
+            header_row = row_idx
+            column_map = candidate
+            break
+
+    if header_row is None:
+        return {'insertados': 0, 'duplicados': 0,
+                'errores': ['No se encontró el encabezado NOMBRE DE LA EMPRESA en la hoja activa.']}
+
+    def valor_fila(row, field):
+        index = column_map.get(field)
+        if index is None or index >= len(row) or row[index] is None:
+            return None
+        value = str(row[index]).strip()
+        return value or None
 
     insertados = 0
     duplicados = 0
     errores = []
+    tabla_iniciada = False
 
-    for idx, row in df.iterrows():
-        fila_num = idx + 2
+    for row_idx, row in enumerate(rows[header_row + 1:], start=header_row + 2):
+        fila_num = row_idx
+        savepoint = db.session.begin_nested()
         try:
-            nombre = str(row['nombre']).strip()
-            if not nombre or pd.isna(row['nombre']):
-                errores.append(f'Fila {fila_num}: nombre vacío.')
+            nombre = valor_fila(row, 'nombre')
+            if not nombre:
+                if tabla_iniciada:
+                    savepoint.rollback()
+                    break
+                savepoint.rollback()
                 continue
+            tabla_iniciada = True
 
-            existente = Dependencia.query.filter_by(nombre=nombre, is_deleted=False).first()
+            existente = Dependencia.query.filter(
+                db.func.lower(Dependencia.nombre) == nombre.lower(),
+                Dependencia.is_deleted == False,
+            ).first()
             if existente:
                 duplicados += 1
+                savepoint.commit()
                 continue
 
-            tipo = str(row.get('tipo', 'Ambos')).strip() if 'tipo' in df.columns and not pd.isna(row.get('tipo', '')) else 'Ambos'
-            if tipo not in TIPOS:
-                tipo = 'Ambos'
-            sector = str(row['sector']).strip() if 'sector' in df.columns and not pd.isna(row.get('sector', '')) else None
-            domicilio = str(row['domicilio']).strip() if 'domicilio' in df.columns and not pd.isna(row.get('domicilio', '')) else None
-            contacto = str(row['contacto']).strip() if 'contacto' in df.columns and not pd.isna(row.get('contacto', '')) else None
-            telefono = str(row['telefono']).strip() if 'telefono' in df.columns and not pd.isna(row.get('telefono', '')) else None
-            correo = str(row['correo']).strip() if 'correo' in df.columns and not pd.isna(row.get('correo', '')) else None
+            sector = valor_fila(row, 'sector')
+            domicilio = valor_fila(row, 'domicilio')
+            contacto = valor_fila(row, 'contacto')
+            telefono = valor_fila(row, 'telefono')
+            correo = valor_fila(row, 'correo')
+            rubro = valor_fila(row, 'rubro')
+            area_interes = valor_fila(row, 'area_interes')
 
-            dep = Dependencia(nombre=nombre, tipo=tipo, sector=sector,
+            dep = Dependencia(nombre=nombre, tipo='Practicas', sector=sector,
+                              rubro=rubro, area_interes=area_interes,
                               domicilio=domicilio, contacto=contacto,
                               telefono=telefono, correo=correo)
             db.session.add(dep)
+            db.session.flush()
             insertados += 1
         except Exception as e:
+            savepoint.rollback()
             errores.append(f'Fila {fila_num}: {str(e)}')
 
     try:

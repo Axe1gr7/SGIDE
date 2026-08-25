@@ -41,6 +41,17 @@
             <input type="text" name="domicilio" class="glass-input" value="{{ dependencia.domicilio if dependencia else '' }}" placeholder="Calle, número, colonia, ciudad...">
         </div>
 
+        <div style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Rubro</label>
+                <input type="text" name="rubro" class="glass-input" value="{{ dependencia.rubro if dependencia else '' }}">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label class="form-label">Área de interés</label>
+                <input type="text" name="area_interes" class="glass-input" value="{{ dependencia.area_interes if dependencia else '' }}">
+            </div>
+        </div>
+
         <div class="form-group">
             <label class="form-label">Contacto (Nombre de persona)</label>
             <input type="text" name="contacto" class="glass-input" value="{{ dependencia.contacto if dependencia else '' }}">

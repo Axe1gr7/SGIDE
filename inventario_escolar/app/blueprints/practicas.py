@@ -1,22 +1,29 @@
 import os
 import io
-from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
-from flask_login import login_required
-from sqlalchemy import func
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, abort
+import unicodedata
+from datetime import date, datetime, time
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, current_app, send_file, abort)
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Alumno, Carrera, Expediente, Documento, Practica, Dependencia
 from app.decorators import roles_required, active_query
-from app.services.logic_word import generar_documento_word
+from app.services.logic_word import generar_documento_pdf, generar_documento_word
+from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_zip import procesar_zip_pdfs
 from app.models import CarpetaCompartida, ArchivoCompartido
+
 
 practicas_bp = Blueprint('practicas', __name__)
 MODULO_LABEL = 'Prácticas Profesionales'
 MODULO_PREFIX = 'practicas'
+DOCUMENTOS_PRACTICAS_AUTO = [
+    'Carta de presentación de prácticas profesionales',
+    'Carta de aceptación de prácticas profesionales',
+    'Constancia de terminación de prácticas profesionales',
+]
 
 
 @practicas_bp.before_request
@@ -39,31 +46,30 @@ def menu():
 
 @practicas_bp.route('/dashboard')
 def dashboard():
-    # 1. Alumnos con y sin derecho a realizar Prácticas profesionales
-    # Se consideran alumnos en el semestre correspondiente (5º o superior, o egresados)
-    # Para el año 2026, esto corresponde a la generación 2024 o anteriores
-    current_year = datetime.now().year
-    limite_generacion = (current_year - 2) % 100  # ej: 24 para 2026
-    
-    alumnos_elegibles = Alumno.query.filter(
-        Alumno.is_deleted == False,
-        Alumno.estatus.in_(['Activo', 'Egresado']),
-        Alumno.anio_generacion <= limite_generacion
-    ).all()
-    
-    tienen_derecho = 0
-    no_tienen_derecho = 0
-    for a in alumnos_elegibles:
-        if _check_ss_completo(a):
-            tienen_derecho += 1
-        else:
-            no_tienen_derecho += 1
-            
-    # 2. Datos generales de la tabla de Prácticas
-    total_practicas = Practica.query.filter_by(is_deleted=False).count()
-    concluidas = Practica.query.filter_by(is_deleted=False, observaciones='CONCLUIDO').count()
-    en_tramite = Practica.query.filter_by(is_deleted=False, observaciones='EN TRÁMITE').count()
-    sin_estatus = total_practicas - concluidas - en_tramite
+    # Mantener el mismo criterio de elegibilidad que usa el submódulo Alumnos:
+    # únicamente Servicio Social finalizado.
+    alumnos_candidatos = active_query(Alumno).all()
+    tienen_derecho = sum(_check_ss_completo(alumno) for alumno in alumnos_candidatos)
+    no_tienen_derecho = len(alumnos_candidatos) - tienen_derecho
+
+    # Las mismas reglas de finalización se aplican en la tabla de Alumnos:
+    # CONCLUIDO o constancia de terminación CONS.T = SI.
+    practicas_registradas = active_query(Practica).all()
+    total_practicas = len(practicas_registradas)
+    estatus_counts = {
+        estatus: sum(practica.observaciones == estatus for practica in practicas_registradas)
+        for estatus in Practica.OBSERVACIONES_OPTS
+    }
+    aptos = sum(
+        1 for alumno in alumnos_candidatos
+        if _check_ss_completo(alumno) and not _get_practicas_for_alumno(alumno)
+    ) + estatus_counts['APTO']
+    concluidas = estatus_counts['CONCLUIDO']
+    en_tramite = estatus_counts['EN TRÁMITE']
+    sin_estatus = sum(
+        practica.observaciones not in Practica.OBSERVACIONES_OPTS
+        for practica in practicas_registradas
+    )
     
     # 3. Distribución por Proceso
     procesos_counts = db.session.query(
@@ -85,9 +91,8 @@ def dashboard():
                            tienen_derecho=tienen_derecho,
                            no_tienen_derecho=no_tienen_derecho,
                            total_practicas=total_practicas,
-                           concluidas=concluidas,
-                           en_tramite=en_tramite,
-                           sin_estatus=sin_estatus,
+                           estatus_counts=estatus_counts,
+                           aptos=aptos,
                            proceso_data=proceso_data,
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
@@ -190,6 +195,10 @@ def _build_detalles_query():
     """Construye la query filtrada de Practica según request.args."""
     query = Practica.query.filter_by(is_deleted=False)
 
+    practica_id = request.args.get('practica_id', type=int)
+    if practica_id:
+        query = query.filter(Practica.id == practica_id)
+
     # Búsqueda general por texto
     search = request.args.get('search', '').strip()
     if search:
@@ -216,10 +225,10 @@ def _build_detalles_query():
 
 def _get_columnas_activas():
     """Obtiene las columnas visibles de request.args o retorna todas."""
-    cols = request.args.getlist('cols')
     all_fields = [c[0] for c in COLUMNAS_MAPA]
-    if not cols:
+    if 'cols' not in request.args:
         return all_fields
+    cols = request.args.getlist('cols')
     # Validar contra campos existentes
     return [c for c in cols if c in all_fields]
 
@@ -229,6 +238,7 @@ def detalles():
     query = _build_detalles_query()
     practicas = query.all()
     columnas_activas = _get_columnas_activas()
+    selected_practica_id = request.args.get('practica_id', type=int)
 
     # Calcular cuántos filtros están activos para el badge
     filtros_activos = 0
@@ -246,6 +256,7 @@ def detalles():
                            columnas_activas=columnas_activas,
                            filtros_selector=FILTROS_SELECTOR,
                            filtros_activos=filtros_activos,
+                           selected_practica_id=selected_practica_id if len(practicas) == 1 else None,
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
 
@@ -253,7 +264,8 @@ def detalles():
 @practicas_bp.route('/detalles/exportar')
 def exportar_detalles():
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.worksheet.table import Table, TableStyleInfo
 
     query = _build_detalles_query()
     practicas = query.all()
@@ -266,47 +278,59 @@ def exportar_detalles():
     ws = wb.active
     ws.title = 'Prácticas Profesionales'
 
-    # Estilos para el encabezado
-    header_font = Font(name='Calibri', bold=True, size=11, color='FFFFFF')
-    header_fill = PatternFill(start_color='4F46E5', end_color='4F46E5', fill_type='solid')
-    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
+    if not cols_export:
+        flash('Selecciona al menos una columna para exportar.', 'warning')
+        return redirect(url_for('practicas.detalles', **request.args))
 
-    # Escribir encabezados
+    # Encabezados con estilo editorial y filas de datos filtradas.
+    header_font = Font(name='Aptos Display', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill('solid', fgColor='12304A')
+    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    body_border = Border(bottom=Side(style='hair', color='D9E2EC'))
     for col_idx, (field, header) in enumerate(cols_export, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = header_align
-        cell.border = thin_border
+        cell.border = body_border
 
     # Escribir datos
     for row_idx, p in enumerate(practicas, start=2):
         for col_idx, (field, _header) in enumerate(cols_export, start=1):
             val = getattr(p, field, None)
-            # Formatear fechas para Excel
-            if val is not None and hasattr(val, 'strftime'):
-                val = val.strftime('%d/%m/%Y')
             # Convertir Decimal a float
             if val is not None and hasattr(val, 'is_finite'):
                 val = float(val)
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
-            cell.border = thin_border
+            cell.border = body_border
+            if hasattr(val, 'strftime'):
+                cell.number_format = 'd/m/yyyy'
+            cell.alignment = Alignment(vertical='top', wrap_text=False)
 
-    # Autoajustar ancho de columnas
+    # Tabla nativa de Excel: filtros desplegables, bandas y rango completo.
+    last_column = ws.cell(row=1, column=len(cols_export)).column_letter
+    last_row = max(2, len(practicas) + 1)
+    tabla = Table(displayName='TablaPracticasExportadas', ref=f'A1:{last_column}{last_row}')
+    tabla.tableStyleInfo = TableStyleInfo(
+        name='TableStyleMedium2', showFirstColumn=False,
+        showLastColumn=False, showRowStripes=True, showColumnStripes=False
+    )
+    ws.add_table(tabla)
+
+    # Autoajustar anchos usando una muestra de valores, sin ensanchar columnas
+    # por textos excepcionalmente largos.
     for col_idx, (field, header) in enumerate(cols_export, start=1):
         max_len = len(header)
-        for row in range(2, min(len(practicas) + 2, 52)):  # Sample first 50 rows
+        for row in range(2, min(len(practicas) + 2, 52)):
             cell_val = ws.cell(row=row, column=col_idx).value
             if cell_val:
                 max_len = max(max_len, len(str(cell_val)))
-        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 3, 45)
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 3, 38)
 
-    # Congelar la primera fila
+    ws.row_dimensions[1].height = 34
     ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = f'A1:{last_column}{last_row}'
+    ws.sheet_view.showGridLines = False
 
     # Guardar en buffer
     output = io.BytesIO()
@@ -327,9 +351,12 @@ def exportar_detalles():
 def _check_ss_completo(alumno):
     """
     Verifica si el alumno completó con éxito su Servicio Social.
-    Retorna True si tiene un expediente SS (tipo_modulo='s') con al menos
-    un documento y TODOS en estado 'Entregado'.
+    Un alumno marcado explícitamente como Servicio Finalizado también cumple
+    la regla, aunque la constancia no haya sido registrada en este módulo.
     """
+    if alumno.estatus == 'Servicio Finalizado':
+        return True
+
     expediente_ss = Expediente.query.filter_by(
         alumno_id=alumno.id,
         tipo_modulo='s',
@@ -343,22 +370,54 @@ def _check_ss_completo(alumno):
     ).count()
     if total_docs == 0:
         return False
-    entregados = Documento.query.filter_by(
-        expediente_id=expediente_ss.id,
-        is_deleted=False,
-        estado='Entregado'
+    completados = Documento.query.filter(
+        Documento.expediente_id == expediente_ss.id,
+        Documento.is_deleted == False,
+        Documento.estado.in_(['Entregado', 'Recibido'])
     ).count()
-    return entregados == total_docs
+    return completados == total_docs
 
 
 def _get_practica_for_alumno(alumno):
-    """Busca un registro de prácticas existente para el alumno por matrícula."""
-    if not alumno.matricula:
-        return None
+    """Devuelve una práctica asociada al alumno, priorizando la FK."""
+    practica = Practica.query.filter_by(
+        alumno_id=alumno.id, is_deleted=False
+    ).order_by(Practica.id.desc()).first()
+    if practica or not alumno.matricula:
+        return practica
     return Practica.query.filter_by(
-        matricula=alumno.matricula,
-        is_deleted=False
-    ).first()
+        matricula=alumno.matricula, is_deleted=False
+    ).order_by(Practica.id.desc()).first()
+
+
+def _get_practicas_for_alumno(alumno):
+    """Obtiene todos los registros para calcular correctamente el estado."""
+    practicas = Practica.query.filter_by(
+        alumno_id=alumno.id, is_deleted=False
+    ).all()
+    if practicas or not alumno.matricula:
+        return practicas
+    return Practica.query.filter_by(
+        matricula=alumno.matricula, is_deleted=False
+    ).all()
+
+
+def _semestre_habilitado(alumno):
+    """Determina si la generación ya alcanzó el semestre de Prácticas."""
+    if alumno.estatus == 'Egresado':
+        return True
+    if alumno.estatus != 'Activo' or alumno.anio_generacion is None:
+        return False
+    limite_generacion = (datetime.now().year - 2) % 100
+    return alumno.anio_generacion <= limite_generacion
+
+
+def _practicas_finalizadas(practicas):
+    return any(
+        (p.observaciones or '').strip().upper() == 'CONCLUIDO'
+        or (p.cons_t or '').strip().upper() == 'SI'
+        for p in practicas
+    )
 
 
 @practicas_bp.route('/alumnos')
@@ -381,25 +440,42 @@ def alumnos():
     if estatus_filter:
         query = query.filter(Alumno.estatus == estatus_filter)
 
-    query = query.order_by(Alumno.nombre)
+    # Aplicar la elegibilidad antes de paginar. De lo contrario alumnos de
+    # generaciones sin derecho a Prácticas ocupan páginas y ocultan alumnos
+    # que sí deben aparecer.
+    candidatos = query.order_by(Alumno.nombre).all()
+    elegibles = []
+    for candidato in candidatos:
+        ss_completo = _check_ss_completo(candidato)
+        if ss_completo:
+            elegibles.append(candidato.id)
+
+    query = query.filter(Alumno.id.in_(elegibles)).order_by(Alumno.nombre)
     pagination = query.paginate(page=page, per_page=20, error_out=False)
 
     carreras = active_query(Carrera).all()
-    estatuses = ['Activo', 'Inactivo', 'Egresado']
+    estatuses = ['Activo', 'Inactivo', 'Egresado', 'Servicio Finalizado']
 
     # Build enriched data for each alumno
     alumnos_data = []
     for alumno in pagination.items:
         ss_completo = _check_ss_completo(alumno)
-        practica = _get_practica_for_alumno(alumno)
-        # If "solo_aptos" filter is on, skip non-apto alumnos
-        # (we'll filter after pagination for simplicity — the filter is cosmetic)
+        practicas = _get_practicas_for_alumno(alumno)
+        practica = practicas[-1] if practicas else None
+        estatus_practicas = (
+            practica.observaciones
+            if practica and practica.observaciones in Practica.OBSERVACIONES_OPTS
+            else ('APTO' if ss_completo else None)
+        )
         alumnos_data.append({
             'alumno': alumno,
             'ss_completo': ss_completo,
             'apto_practicas': ss_completo,
+            'estatus_practicas': estatus_practicas,
             'tiene_practica': practica is not None,
+            'practica': practica,
             'practica_id': practica.id if practica else None,
+            'practicas_finalizadas': _practicas_finalizadas(practicas),
         })
 
     # Apply solo_aptos filter post-query if needed
@@ -419,6 +495,225 @@ def alumnos():
                            modulo_prefix=MODULO_PREFIX)
 
 
+# ── Expediente de Prácticas Profesionales ──────────────────────────────────
+
+def _expediente_practicas_de_alumno(alumno_id):
+    return active_query(Expediente).filter_by(
+        alumno_id=alumno_id, tipo_modulo='p'
+    ).first_or_404()
+
+
+def _dependencia_de_practica(practica):
+    if not practica or not practica.empresa:
+        return None
+    return active_query(Dependencia).filter(
+        db.func.lower(Dependencia.nombre) == practica.empresa.strip().lower()
+    ).first()
+
+
+def _asignar_dependencia_y_documentos_practicas(alumno, nombre_dependencia):
+    """Asocia la dependencia al expediente p y crea sus documentos base."""
+    if not nombre_dependencia:
+        return None
+
+    dependencia = active_query(Dependencia).filter(
+        db.func.lower(Dependencia.nombre) == nombre_dependencia.strip().lower()
+    ).first()
+    expediente = active_query(Expediente).filter_by(
+        alumno_id=alumno.id, tipo_modulo='p'
+    ).first()
+    if not dependencia or not expediente:
+        return dependencia
+
+    expediente.dependencia_id = dependencia.id
+    for nombre_formato in DOCUMENTOS_PRACTICAS_AUTO:
+        existe = active_query(Documento).filter_by(
+            expediente_id=expediente.id,
+            nombre_formato=nombre_formato,
+        ).first()
+        if not existe:
+            db.session.add(Documento(
+                expediente_id=expediente.id,
+                nombre_formato=nombre_formato,
+                estado='Pendiente',
+            ))
+    return dependencia
+
+
+def _siguiente_numero_practica(campo, excluir_id=None):
+    query = active_query(Practica)
+    if excluir_id:
+        query = query.filter(Practica.id != excluir_id)
+    ultimo = query.with_entities(db.func.max(getattr(Practica, campo))).scalar()
+    return (ultimo or 0) + 1
+
+
+def _sincronizar_datos_practica(practica, alumno):
+    practica.nombre = alumno.nombre
+    practica.nombre_minusculas = (alumno.nombre or '').lower() or None
+    practica.matricula = alumno.matricula
+    practica.carrera = alumno.carrera.nombre.upper() if alumno.carrera else None
+    practica.generacion = alumno.generacion_completa if alumno.generacion_completa != 'Pendiente' else None
+
+    dependencia = _asignar_dependencia_y_documentos_practicas(alumno, practica.empresa)
+    if dependencia:
+        practica.empresa = dependencia.nombre
+        practica.sector = dependencia.sector
+        practica.tel_empresa = dependencia.telefono
+        practica.direccion_empresa = dependencia.domicilio
+        practica.correo_empresa = dependencia.correo
+    return dependencia
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente')
+def expediente(alumno_id):
+    alumno = active_query(Alumno).filter_by(id=alumno_id).first_or_404()
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    practica = _get_practica_for_alumno(alumno)
+    documentos = active_query(Documento).filter_by(
+        expediente_id=expediente_obj.id
+    ).all()
+    return render_template(
+        'expedientes/detalle.html',
+        expediente=expediente_obj,
+        alumno=alumno,
+        practica=practica,
+        dependencia_practicas=_dependencia_de_practica(practica),
+        documentos=documentos,
+        dependencias=[],
+        sectores=[],
+        es_practicas=True,
+        es_servicio=False,
+        modulo_label=MODULO_LABEL,
+        modulo_tipo='p',
+        modulo_prefix='practicas',
+    )
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/documento/crear', methods=['GET', 'POST'])
+def crear_documento_expediente(alumno_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    if request.method == 'POST':
+        archivo = request.files.get('archivo')
+        ruta_archivo = None
+        estado = request.form.get('estado') or 'Pendiente'
+        if archivo and archivo.filename:
+            ruta_archivo = guardar_documento(expediente_obj, archivo)
+            estado = 'Entregado'
+        documento = Documento(
+            expediente_id=expediente_obj.id,
+            nombre_formato=request.form.get('nombre_formato', '').strip(),
+            estado=estado,
+            observaciones=request.form.get('observaciones'),
+            ruta_archivo=ruta_archivo,
+        )
+        db.session.add(documento)
+        db.session.commit()
+        flash('Documento de Prácticas agregado.', 'success')
+        return redirect(url_for('practicas.expediente', alumno_id=alumno_id))
+
+    return render_template(
+        'expedientes/documento_form.html',
+        expediente=expediente_obj,
+        documento=None,
+        modulo_label=MODULO_LABEL,
+        modulo_prefix='practicas',
+        es_practicas=True,
+        form_action=url_for('practicas.crear_documento_expediente', alumno_id=alumno_id),
+    )
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/documento/<int:doc_id>/editar', methods=['GET', 'POST'])
+def editar_documento_expediente(alumno_id, doc_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    documento = active_query(Documento).filter_by(
+        id=doc_id, expediente_id=expediente_obj.id
+    ).first_or_404()
+    if request.method == 'POST':
+        documento.nombre_formato = request.form.get('nombre_formato', '').strip()
+        documento.estado = request.form.get('estado') or 'Pendiente'
+        documento.observaciones = request.form.get('observaciones')
+        archivo = request.files.get('archivo')
+        if archivo and archivo.filename:
+            documento.ruta_archivo = guardar_documento(expediente_obj, archivo)
+            documento.estado = 'Entregado'
+        db.session.commit()
+        flash('Documento de Prácticas actualizado.', 'success')
+        return redirect(url_for('practicas.expediente', alumno_id=alumno_id))
+
+    return render_template(
+        'expedientes/documento_form.html',
+        expediente=expediente_obj,
+        documento=documento,
+        modulo_label=MODULO_LABEL,
+        modulo_prefix='practicas',
+        es_practicas=True,
+        form_action=url_for(
+            'practicas.editar_documento_expediente',
+            alumno_id=alumno_id,
+            doc_id=doc_id,
+        ),
+    )
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/documento/<int:doc_id>/eliminar', methods=['POST'])
+def eliminar_documento_expediente(alumno_id, doc_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    documento = active_query(Documento).filter_by(
+        id=doc_id, expediente_id=expediente_obj.id
+    ).first_or_404()
+    documento.is_deleted = True
+    db.session.commit()
+    flash('Documento de Prácticas eliminado.', 'success')
+    return redirect(url_for('practicas.expediente', alumno_id=alumno_id))
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/documento/<int:doc_id>/descargar')
+def descargar_archivo_expediente(alumno_id, doc_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    documento = active_query(Documento).filter_by(
+        id=doc_id, expediente_id=expediente_obj.id
+    ).first_or_404()
+    ruta_absoluta = obtener_ruta_absoluta(documento.ruta_archivo)
+    if not ruta_absoluta or not os.path.exists(ruta_absoluta):
+        abort(404)
+    return send_file(
+        ruta_absoluta,
+        as_attachment=True,
+        download_name=os.path.basename(documento.ruta_archivo),
+    )
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/generar-word', methods=['POST'])
+def generar_word_expediente(alumno_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    try:
+        output_path, filename = generar_documento_word(
+            expediente_obj.alumno_id, 'p'
+        )
+        return send_file(output_path, as_attachment=True, download_name=filename)
+    except Exception as e:
+        flash(f'Error al generar el formato: {str(e)}', 'danger')
+        return redirect(url_for('practicas.expediente', alumno_id=alumno_id))
+
+
+@practicas_bp.route('/alumnos/<int:alumno_id>/expediente/documento/<int:doc_id>/generar-word', methods=['POST'])
+def generar_word_documento_expediente(alumno_id, doc_id):
+    expediente_obj = _expediente_practicas_de_alumno(alumno_id)
+    documento = active_query(Documento).filter_by(
+        id=doc_id, expediente_id=expediente_obj.id
+    ).first_or_404()
+    try:
+        template_name = f'{documento.nombre_formato}.docx'
+        output_path, filename = generar_documento_pdf(
+            expediente_obj.alumno_id, 'p', template_name=template_name
+        )
+        return send_file(output_path, as_attachment=True, download_name=filename)
+    except Exception as e:
+        flash(f'Error al generar el formato {documento.nombre_formato}: {str(e)}', 'danger')
+        return redirect(url_for('practicas.expediente', alumno_id=alumno_id))
+
+
 # ── Asignar Prácticas (formulario) ─────────────────────────────────────────
 
 @practicas_bp.route('/alumnos/<int:alumno_id>/asignar', methods=['GET', 'POST'])
@@ -427,6 +722,9 @@ def asignar(alumno_id):
 
     if request.method == 'POST':
         practica = Practica()
+        # Mantener la relación con el alumno y su expediente p; la matrícula
+        # visible puede cambiar, pero la FK conserva la integración.
+        practica.alumno_id = alumno.id
 
         # Helper to get optional form values
         def fv(name):
@@ -462,7 +760,8 @@ def asignar(alumno_id):
 
         # ── Col 1-8: Datos personales ──────────────────────────────────
         practica.no_registro = fv_int('no_registro')
-        practica.consecutivo = fv_int('consecutivo')
+        practica.no_registro = practica.no_registro or _siguiente_numero_practica('no_registro')
+        practica.consecutivo = _siguiente_numero_practica('consecutivo')
         practica.no_constancia = fv('no_constancia')
         practica.nombre = fv('nombre')
         practica.nombre_minusculas = fv('nombre_minusculas')
@@ -551,17 +850,22 @@ def asignar(alumno_id):
         practica.paso_por_constancia = fv('paso_por_constancia')
         practica.pc = fv('pc')
 
+        _sincronizar_datos_practica(practica, alumno)
         db.session.add(practica)
+        db.session.flush()
+        _asignar_dependencia_y_documentos_practicas(alumno, practica.empresa)
         db.session.commit()
         flash('Registro de prácticas creado exitosamente.', 'success')
         return redirect(url_for('practicas.alumnos'))
 
     # GET: pre-fill from alumno data
     prefill = {
+        'no_registro': _siguiente_numero_practica('no_registro'),
+        'consecutivo': _siguiente_numero_practica('consecutivo'),
         'nombre': alumno.nombre or '',
         'nombre_minusculas': (alumno.nombre or '').title(),
         'matricula': alumno.matricula or '',
-        'carrera': alumno.carrera.nombre if alumno.carrera else '',
+        'carrera': alumno.carrera.nombre.upper() if alumno.carrera else '',
         'generacion': alumno.generacion_completa if alumno.generacion_completa != 'Pendiente' else '',
     }
 
@@ -569,83 +873,6 @@ def asignar(alumno_id):
     dependencias = Dependencia.query.filter(
         Dependencia.tipo.in_(['Practicas', 'Ambos']),
         Dependencia.is_deleted == False
-@practicas_bp.route('/exportar-compartidos', methods=['POST'])
-def exportar_compartidos():
-    import pandas as pd
-    from datetime import datetime
-    import os
-    
-    carpeta_id = request.form.get('carpeta_id')
-    nueva_carpeta = request.form.get('nueva_carpeta')
-    nombre_archivo = request.form.get('nombre_archivo', 'Reporte_Practicas')
-    
-    if nueva_carpeta:
-        carpeta = CarpetaCompartida(nombre=nueva_carpeta, created_by_id=current_user.id)
-        db.session.add(carpeta)
-        db.session.commit()
-        carpeta_id = carpeta.id
-    elif carpeta_id:
-        carpeta = active_query(CarpetaCompartida).filter_by(id=carpeta_id).first_or_404()
-    else:
-        flash('Debe seleccionar o crear una carpeta.', 'danger')
-        return redirect(url_for(f'{MODULO_PREFIX}.lista'))
-
-    carrera_filter = request.form.get('carrera_filter')
-    search = request.form.get('search')
-    estado_filter = request.form.get('estado_filter')
-    estatus_filter = request.form.get('estatus_filter')
-
-    query = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).join(Alumno)
-    if carrera_filter: query = query.filter(Alumno.carrera_id == carrera_filter)
-    if search: query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
-    if estado_filter: query = query.join(Documento).filter(Documento.estado == estado_filter).distinct()
-    if estatus_filter: query = query.filter(Alumno.estatus == estatus_filter)
-
-    data = []
-    for e in query.all():
-        data.append({
-            'Clave Expediente': e.clave_expediente,
-            'Alumno': e.alumno.nombre,
-            'Matrícula': e.alumno.matricula,
-            'Carrera': e.alumno.carrera.nombre if e.alumno.carrera else '',
-            'Generación': e.alumno.generacion_completa,
-            'Estatus': e.alumno.estatus,
-            'Empresa/Lugar': e.dependencia.nombre if e.dependencia else '-',
-            'Total Docs': e.documentos.filter_by(is_deleted=False).count(),
-            'Docs Entregados': e.documentos.filter_by(is_deleted=False, estado='Entregado').count()
-        })
-        
-    df = pd.DataFrame(data)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{nombre_archivo}_{timestamp}.xlsx"
-    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'compartidos', str(carpeta_id))
-    os.makedirs(upload_dir, exist_ok=True)
-    ruta_absoluta = os.path.join(upload_dir, filename)
-    
-    df.to_excel(ruta_absoluta, index=False)
-    
-    ruta_relativa = os.path.join('compartidos', str(carpeta_id), filename)
-    
-    nuevo_archivo = ArchivoCompartido(
-        carpeta_id=carpeta_id,
-        nombre=nombre_archivo,
-        ruta_archivo=ruta_relativa,
-        tipo_archivo='xlsx',
-        uploaded_by_id=current_user.id
-    )
-    db.session.add(nuevo_archivo)
-    db.session.commit()
-    
-    flash(f'Reporte guardado en Compartidos -> {carpeta.nombre}', 'success')
-    return redirect(url_for(f'{MODULO_PREFIX}.lista'))
-
-@practicas_bp.route('/<int:id>')
-def detalle(id):
-    expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
-    documentos = active_query(Documento).filter_by(expediente_id=id).all()
-    dependencias = active_query(Dependencia).filter(
-        db.func.lower(Dependencia.tipo).in_(['practicas', 'ambos'])
     ).order_by(Dependencia.nombre).all()
 
     return render_template('practicas/asignar_form.html',
@@ -657,15 +884,92 @@ def detalle(id):
                            modulo_prefix=MODULO_PREFIX)
 
 
+# ── Exportar a Compartidos ─────────────────────────────────────────────────
+
+@practicas_bp.route('/exportar-compartidos', methods=['POST'])
+def exportar_compartidos():
+    import pandas as pd
+
+    carpeta_id = request.form.get('carpeta_id')
+    nueva_carpeta = request.form.get('nueva_carpeta')
+    nombre_archivo = request.form.get('nombre_archivo', 'Reporte_Practicas')
+
+    if nueva_carpeta:
+        carpeta = CarpetaCompartida(nombre=nueva_carpeta, created_by_id=current_user.id)
+        db.session.add(carpeta)
+        db.session.commit()
+        carpeta_id = carpeta.id
+    elif carpeta_id:
+        carpeta = active_query(CarpetaCompartida).filter_by(id=carpeta_id).first_or_404()
+    else:
+        flash('Debe seleccionar o crear una carpeta.', 'danger')
+        return redirect(url_for(f'{MODULO_PREFIX}.detalles'))
+
+    # Reutilizar la misma query que detalles para respetar filtros
+    query = _build_detalles_query()
+    practicas = query.all()
+
+    data = []
+    for p in practicas:
+        data.append({
+            'No. Registro': p.no_registro,
+            'No. Constancia': p.no_constancia,
+            'Nombre': p.nombre,
+            'Matrícula': p.matricula,
+            'Carrera': p.carrera,
+            'Turno': p.turno,
+            'Observaciones': p.observaciones,
+            'Proceso': p.proceso,
+            'Empresa': p.empresa,
+            'Sector': p.sector,
+            'Generación': p.generacion,
+            'Sexo': p.sexo,
+        })
+
+    df = pd.DataFrame(data)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{nombre_archivo}_{timestamp}.xlsx"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'compartidos', str(carpeta_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    ruta_absoluta = os.path.join(upload_dir, filename)
+
+    df.to_excel(ruta_absoluta, index=False)
+
+    ruta_relativa = os.path.join('compartidos', str(carpeta_id), filename)
+
+    nuevo_archivo = ArchivoCompartido(
+        carpeta_id=carpeta_id,
+        nombre=nombre_archivo,
+        ruta_archivo=ruta_relativa,
+        tipo_archivo='xlsx',
+        uploaded_by_id=current_user.id
+    )
+    db.session.add(nuevo_archivo)
+    db.session.commit()
+
+    flash(f'Reporte guardado en Compartidos -> {carpeta.nombre}', 'success')
+    return redirect(url_for(f'{MODULO_PREFIX}.detalles'))
+
+
+
 # ── Ver Detalles de Práctica ───────────────────────────────────────────────
 
 @practicas_bp.route('/alumnos/<int:alumno_id>/detalle')
 def detalle_practica(alumno_id):
     alumno = active_query(Alumno).filter_by(id=alumno_id).first_or_404()
     practica = Practica.query.filter_by(
-        matricula=alumno.matricula,
+        alumno_id=alumno.id,
         is_deleted=False
-    ).first_or_404()
+    ).order_by(Practica.id.desc()).first()
+    if not practica and alumno.matricula:
+        practica = Practica.query.filter_by(
+            matricula=alumno.matricula,
+            is_deleted=False
+        ).order_by(Practica.id.desc()).first()
+    if not practica:
+        from flask import abort
+        abort(404)
 
     return render_template('practicas/detalle_practica.html',
                            alumno=alumno,
@@ -674,12 +978,95 @@ def detalle_practica(alumno_id):
                            modulo_prefix=MODULO_PREFIX)
 
 
+@practicas_bp.route('/detalles/<int:practica_id>/editar', methods=['GET', 'POST'])
+def editar_practica(practica_id):
+    practica = active_query(Practica).filter_by(id=practica_id).first_or_404()
+    alumno = practica.alumno or active_query(Alumno).filter_by(
+        matricula=practica.matricula
+    ).first()
+    if not alumno:
+        abort(404)
+
+    if request.method == 'POST':
+        consecutivo_original = practica.consecutivo
+        date_fields = {
+            field for field, column in Practica.__table__.columns.items()
+            if str(column.type).upper().startswith('DATE')
+        }
+        numeric_fields = {'becados', 'r_e_final_valor', 'c_t_valor'}
+        integer_fields = {
+            'no_registro', 'consecutivo', 'f_inicio_dia', 'f_inicio_anio',
+            'f_ca_dia', 'f_ca_anio', 'inf_final_valor', 'f_ct_dia', 'f_ct_anio'
+        }
+        for field in COLUMNAS_MAPA:
+            nombre_campo = field[0]
+            valor = request.form.get(nombre_campo, '').strip()
+            if nombre_campo in date_fields:
+                valor = datetime.strptime(valor, '%Y-%m-%d').date() if valor else None
+            elif nombre_campo in numeric_fields:
+                try:
+                    valor = float(valor.replace(',', '.')) if valor else None
+                except ValueError:
+                    valor = None
+            elif nombre_campo in integer_fields:
+                try:
+                    valor = int(float(valor)) if valor else None
+                except ValueError:
+                    valor = None
+            else:
+                valor = valor or None
+            if nombre_campo == 'observaciones' and valor not in (None, 'APTO', 'EN TRÁMITE', 'CONCLUIDO', 'BAJA'):
+                valor = None
+            setattr(practica, nombre_campo, valor)
+
+        practica.consecutivo = consecutivo_original or _siguiente_numero_practica(
+            'consecutivo', excluir_id=practica.id
+        )
+        _sincronizar_datos_practica(practica, alumno)
+        db.session.commit()
+        flash('Registro de prácticas actualizado exitosamente.', 'success')
+        return redirect(url_for('practicas.detalles', practica_id=practica.id))
+
+    dependencias = Dependencia.query.filter(
+        Dependencia.tipo.in_(['Practicas', 'Ambos']),
+        Dependencia.is_deleted == False
+    ).order_by(Dependencia.nombre).all()
+    return render_template(
+        'practicas/asignar_form.html', alumno=alumno, practica=practica,
+        prefill={}, practica_model=Practica, dependencias=dependencias,
+        modulo_label=MODULO_LABEL, modulo_prefix=MODULO_PREFIX,
+        form_action=url_for('practicas.editar_practica', practica_id=practica.id),
+        form_title='Editar Registro de Prácticas', form_submit='Actualizar Registro',
+        practica_data={
+            field: (
+                value.isoformat() if hasattr(value, 'isoformat')
+                else value if value is None or isinstance(value, (str, int, float, bool))
+                else str(value)
+            )
+            for field, value in (
+                (field, getattr(practica, field)) for field, _header in COLUMNAS_MAPA
+            )
+        }
+    )
+
+
+@practicas_bp.route('/detalles/<int:practica_id>/eliminar', methods=['POST'])
+def eliminar_practica(practica_id):
+    practica = active_query(Practica).filter_by(id=practica_id).first_or_404()
+    practica.is_deleted = True
+    db.session.commit()
+    flash('Registro de prácticas eliminado.', 'success')
+    return redirect(url_for('practicas.detalles'))
+
+
 # ── Submódulo: Importación Masiva ──────────────────────────────────────────
 
 @practicas_bp.route('/importar', methods=['GET', 'POST'])
 def importar():
     resultado = None
+    tipo_importacion = request.args.get('tipo_importacion', 'menu')
     if request.method == 'POST':
+        tipo_importacion = request.form.get('tipo_importacion', 'registros_practicas')
         if 'archivo_excel' not in request.files:
             flash('No se subió ningún archivo.', 'danger')
             return redirect(request.url)
@@ -689,114 +1076,330 @@ def importar():
             flash('No se seleccionó ningún archivo.', 'danger')
             return redirect(request.url)
 
-        if file and file.filename.endswith(('.xlsx', '.xls')):
+        if file and file.filename.lower().endswith(('.xlsx', '.xls')):
             # Ensure the /tmp or similar directory exists, or just use a local tmp folder
             import tempfile
             temp_dir = tempfile.gettempdir()
             filepath = os.path.join(temp_dir, secure_filename(file.filename))
             file.save(filepath)
-            
-            resultado = procesar_excel_practicas(filepath)
-            os.remove(filepath)
+
+            try:
+                if tipo_importacion == 'dependencias':
+                    from app.blueprints.dependencias import procesar_excel_dependencias
+                    resultado = procesar_excel_dependencias(filepath)
+                else:
+                    tipo_importacion = 'registros_practicas'
+                    resultado = procesar_excel_practicas(filepath)
+            finally:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
             
             if resultado['errores']:
                 flash('Importación completada con algunos errores. Revisa el resumen.', 'warning')
             else:
-                flash('Importación de prácticas completada exitosamente.', 'success')
+                mensaje = ('Importación de dependencias completada exitosamente.'
+                           if tipo_importacion == 'dependencias'
+                           else 'Importación de prácticas completada exitosamente.')
+                flash(mensaje, 'success')
         else:
             flash('Formato de archivo no válido. Usa .xlsx o .xls', 'danger')
 
-    return render_template('practicas/importar.html', 
+    return render_template('practicas/importar.html',
                            resultado=resultado,
                            columnas_mapa=COLUMNAS_MAPA,
+                           tipo_importacion=tipo_importacion,
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
 
 
 def procesar_excel_practicas(filepath):
     import pandas as pd
-    import math
+    from app.services.logic_expediente import crear_expedientes_alumno, registrar_alumno
+
+    def normalizar(valor):
+        texto = '' if valor is None else str(valor).strip()
+        if texto.lower() in ('nan', 'nat', 'none'):
+            return ''
+        texto = unicodedata.normalize('NFD', texto)
+        return ''.join(c for c in texto if unicodedata.category(c) != 'Mn').upper()
+
+    def matricula_limpia(valor):
+        texto = normalizar(valor)
+        return texto[:-2] if texto.endswith('.0') else texto
+
+    def fecha_limpia(valor):
+        """Convierte valores de Excel a date y evita enviar time a PostgreSQL."""
+        if valor is None or pd.isna(valor):
+            return None
+        if isinstance(valor, datetime):
+            return valor.date()
+        if isinstance(valor, date) and not isinstance(valor, datetime):
+            return valor
+        if isinstance(valor, time):
+            return None
+        if isinstance(valor, (int, float)):
+            try:
+                return (pd.Timestamp('1899-12-30') + pd.to_timedelta(valor, unit='D')).date()
+            except (ValueError, TypeError, OverflowError):
+                return None
+        try:
+            convertido = pd.to_datetime(str(valor).strip(), errors='coerce')
+            return None if pd.isna(convertido) else convertido.date()
+        except (ValueError, TypeError):
+            return None
 
     try:
-        df = pd.read_excel(filepath, engine='openpyxl')
+        # Se importa únicamente la hoja activa del libro; las demás hojas se ignoran.
+        from openpyxl import load_workbook
+        workbook = load_workbook(filepath, read_only=True, data_only=True)
+        active_sheet = workbook.active.title
+        workbook.close()
+        raw = pd.read_excel(filepath, sheet_name=active_sheet, engine='openpyxl', header=None)
     except Exception as e:
         return {'insertados': 0, 'duplicados': 0, 'errores': [f'Error al leer el archivo: {str(e)}']}
 
-    # Clean headers to match the COLUMNAS_MAPA precisely
-    df.columns = [str(c).strip() for c in df.columns]
+    # Se comparan encabezados sin acentos ni puntuación para aceptar variantes
+    # como MATRICULA/MATRÍCULA y DIRECCION/DIRECCIÓN.
+    def clave_encabezado(valor):
+        return ''.join(c for c in normalizar(valor) if c.isalnum())
 
-    # Create a reverse map: excel_header -> db_field
-    header_to_field = {header.strip(): field for field, header in COLUMNAS_MAPA}
+    campos_por_encabezado = {}
+    for field, header in COLUMNAS_MAPA:
+        campos_por_encabezado.setdefault(clave_encabezado(header), []).append(field)
+    header_row_idx = -1
+    mejor_mapa = {}
+    max_matches = 0
+    for row_idx in range(min(20, len(raw))):
+        mapa = {}
+        ocurrencias = {}
+        for col_idx, header in enumerate(raw.iloc[row_idx].tolist()):
+            clave = clave_encabezado(header)
+            candidatos = campos_por_encabezado.get(clave, [])
+            ocurrencia = ocurrencias.get(clave, 0)
+            if ocurrencia < len(candidatos):
+                mapa[col_idx] = candidatos[ocurrencia]
+                ocurrencias[clave] = ocurrencia + 1
+        if len(mapa) > max_matches:
+            header_row_idx, mejor_mapa, max_matches = row_idx, mapa, len(mapa)
 
-    # Verify if we have at least 'MATRÍCULA' and 'No. CONSTANCIA'
-    if 'MATRÍCULA' not in df.columns or 'No. CONSTANCIA' not in df.columns:
-        return {'insertados': 0, 'duplicados': 0, 'errores': ['Faltan columnas clave: MATRÍCULA y/o No. CONSTANCIA']}
+    if header_row_idx < 0:
+        return {'insertados': 0, 'duplicados': 0, 'errores': ['No se encontró ninguna fila con encabezados reconocibles.']}
 
-    insertados = 0
-    duplicados = 0
+    df = raw.iloc[header_row_idx + 1:].reset_index(drop=True)
+    insertados = duplicados = 0
     errores = []
+    registros_vistos = set()
+    date_fields = {
+        field for field, column in Practica.__table__.columns.items()
+        if str(column.type).upper().startswith('DATE')
+    }
+    numeric_fields = {'becados', 'r_e_final_valor', 'c_t_valor'}
+    integer_fields = {
+        'no_registro', 'consecutivo', 'f_inicio_dia', 'f_inicio_anio',
+        'f_ca_dia', 'f_ca_anio', 'inf_final_valor', 'f_ct_dia', 'f_ct_anio'
+    }
 
-    # Get types for DB fields to cast properly
-    date_fields = [f for f in dir(Practica) if getattr(getattr(Practica, f), 'type', None) and str(getattr(Practica, f).type).startswith('DATE')]
-    numeric_fields = ['becados', 'r_e_final_valor', 'c_t_valor']
-    integer_fields = ['no_registro', 'consecutivo', 'f_inicio_dia', 'f_inicio_anio', 'f_ca_dia', 'f_ca_anio', 'inf_final_valor', 'f_ct_dia', 'f_ct_anio']
+    def buscar_carrera(valor):
+        clave = clave_encabezado(valor)
+        aliases = {
+            'LOGISTICA': 'Logística', 'BIOTECNOLOGIA': 'Biotecnología',
+            'PGA': 'PGA', 'PROGRAMACION': 'Programación',
+            'MECATRONICA': 'Mecatrónica',
+        }
+        nombre = aliases.get(clave, str(valor).strip() if valor else '')
+        return Carrera.query.filter(
+            Carrera.is_deleted == False,
+            db.func.lower(Carrera.nombre) == nombre.lower()
+        ).first() if nombre else None
+
+    def buscar_alumno(matricula, nombre):
+        if matricula:
+            # Una matrícula nueva no debe enlazarse por coincidencia de nombre.
+            return Alumno.query.filter_by(
+                matricula=matricula, is_deleted=False
+            ).first()
+        if nombre:
+            alumnos = Alumno.query.filter(Alumno.is_deleted == False).all()
+            nombre_clave = normalizar(nombre)
+            return next((a for a in alumnos if normalizar(a.nombre) == nombre_clave), None)
+        return None
+
+    def buscar_o_crear_dependencia(nombre, valores):
+        nombre = nombre.strip()
+        dependencia = Dependencia.query.filter(
+            db.func.lower(Dependencia.nombre) == nombre.lower(),
+            Dependencia.is_deleted == False,
+        ).first()
+        if dependencia:
+            return dependencia
+
+        def texto_campo(campo):
+            valor = valores.get(campo)
+            if valor is None or pd.isna(valor):
+                return None
+            texto = str(valor).strip()
+            return texto or None
+
+        dependencia = Dependencia(
+            nombre=nombre,
+            tipo='Practicas',
+            sector=texto_campo('sector'),
+            domicilio=texto_campo('direccion_empresa'),
+            telefono=texto_campo('tel_empresa'),
+            correo=texto_campo('correo_empresa'),
+        )
+        db.session.add(dependencia)
+        db.session.flush()
+        return dependencia
+
+    def estatus_practica(valor):
+        estado = normalizar(valor)
+        if estado == 'EN TRAMITE':
+            return 'EN TRÁMITE'
+        if estado == 'CONCLUIDO':
+            return 'CONCLUIDO'
+        if estado == 'BAJA':
+            return 'BAJA'
+        return None
 
     for idx, row in df.iterrows():
-        fila_num = idx + 2
+        fila_num = header_row_idx + idx + 2
+        savepoint = db.session.begin_nested()
         try:
-            matricula = str(row['MATRÍCULA']).strip()
-            no_constancia = str(row['No. CONSTANCIA']).strip()
+            valores = {}
+            for col_idx, field in mejor_mapa.items():
+                valor = row.iloc[col_idx] if col_idx < len(row) else None
+                if not pd.isna(valor):
+                    valores[field] = valor
 
-            if (matricula == 'nan' or not matricula) and (no_constancia == 'nan' or not no_constancia):
-                # Skip totally empty rows
+            no_registro = valores.get('no_registro')
+            try:
+                registro_numerado = (
+                    no_registro is not None
+                    and not pd.isna(no_registro)
+                    and str(no_registro).strip() != ''
+                    and float(no_registro).is_integer()
+                )
+            except (TypeError, ValueError):
+                registro_numerado = False
+            if not registro_numerado:
+                savepoint.rollback()
                 continue
 
-            # Check if exists
-            existente = Practica.query.filter(
-                (Practica.matricula == matricula) & (Practica.no_constancia == no_constancia),
-                Practica.is_deleted == False
-            ).first()
-
-            if existente:
+            no_registro = int(float(no_registro))
+            if no_registro in registros_vistos or Practica.query.filter_by(
+                no_registro=no_registro, is_deleted=False
+            ).first() is not None:
+                savepoint.rollback()
                 duplicados += 1
                 continue
+            registros_vistos.add(no_registro)
 
-            nueva_practica = Practica()
+            matricula = matricula_limpia(valores.get('matricula'))
+            nombre = str(valores.get('nombre', '')).strip()
+            no_constancia = str(valores.get('no_constancia', '')).strip()
+            # El alumno es una entidad compartida; su existencia nunca debe
+            # impedir la inserción de la fila independiente de Practica.
+            alumno = buscar_alumno(matricula, nombre)
+            alumno_existente = alumno is not None
+            carrera = buscar_carrera(valores.get('carrera'))
+            generacion = str(valores.get('generacion', '')).strip()
+            anio_generacion = None
+            if generacion and generacion.split('-')[0].isdigit():
+                anio_generacion = int(generacion.split('-')[0])
 
-            for col in df.columns:
-                if col in header_to_field:
-                    field = header_to_field[col]
-                    val = row[col]
+            if not alumno:
+                alumno, _ = registrar_alumno(
+                    nombre=nombre or None,
+                    matricula=matricula or None,
+                    anio_generacion=anio_generacion,
+                    carrera_id=carrera.id if carrera else None,
+                    carrera_prefijo=carrera.prefijo_id if carrera else None,
+                    estatus='Activo',
+                )
+            else:
+                if nombre and not alumno.nombre:
+                    alumno.nombre = nombre
+                if carrera and not alumno.carrera_id:
+                    alumno.carrera_id = carrera.id
+                if anio_generacion and not alumno.anio_generacion:
+                    alumno.anio_generacion = anio_generacion
+                tipos_existentes = {
+                    expediente.tipo_modulo
+                    for expediente in alumno.expedientes.filter_by(is_deleted=False).all()
+                }
+                tipos_faltantes = {'p', 's', 'v'} - tipos_existentes
+                if tipos_faltantes:
+                    expedientes_nuevos = crear_expedientes_alumno(alumno)
+                    for expediente in expedientes_nuevos:
+                        if expediente.tipo_modulo not in tipos_faltantes:
+                            db.session.delete(expediente)
 
-                    if pd.isna(val):
+            alumno.estatus = 'Servicio Finalizado'
+
+            empresa = valores.get('empresa')
+            if empresa is not None and not pd.isna(empresa):
+                empresa = str(empresa).strip()
+            if empresa:
+                dependencia = buscar_o_crear_dependencia(empresa, valores)
+                expediente_practicas = active_query(Expediente).filter_by(
+                    alumno_id=alumno.id, tipo_modulo='p'
+                ).first()
+                if expediente_practicas:
+                    expediente_practicas.dependencia_id = dependencia.id
+                    for nombre_formato in DOCUMENTOS_PRACTICAS_AUTO:
+                        existe = active_query(Documento).filter_by(
+                            expediente_id=expediente_practicas.id,
+                            nombre_formato=nombre_formato,
+                        ).first()
+                        if not existe:
+                            db.session.add(Documento(
+                                expediente_id=expediente_practicas.id,
+                                nombre_formato=nombre_formato,
+                                estado='Pendiente',
+                            ))
+
+            practica = Practica()
+
+            practica.alumno_id = alumno.id if alumno else None
+            practica.matricula = matricula or None
+            for field, value in valores.items():
+                if field in ('matricula', 'nombre'):
+                    value = matricula if field == 'matricula' else str(value).strip()
+                elif field == 'observaciones':
+                    value = estatus_practica(value)
+                    if value is None:
                         continue
-                    
-                    if field in date_fields:
-                        if isinstance(val, pd.Timestamp):
-                            setattr(nueva_practica, field, val.date())
-                        else:
-                            # Try to parse if it's a string, or leave None
-                            pass
-                    elif field in numeric_fields:
-                        try:
-                            setattr(nueva_practica, field, float(val))
-                        except (ValueError, TypeError):
-                            pass
-                    elif field in integer_fields:
-                        try:
-                            setattr(nueva_practica, field, int(float(val)))
-                        except (ValueError, TypeError):
-                            pass
-                    else:
-                        val_str = str(val).strip()
-                        if val_str != 'nan':
-                            # Truncate strings to prevent DB overflow if needed, but for now just assign
-                            setattr(nueva_practica, field, val_str)
-
-            db.session.add(nueva_practica)
+                if field in date_fields:
+                    fecha = fecha_limpia(value)
+                    if fecha is not None:
+                        setattr(practica, field, fecha)
+                elif field in numeric_fields:
+                    if isinstance(value, (datetime, date, time)):
+                        continue
+                    try:
+                        numero = float(value)
+                        # r_e_final_valor y c_t_valor son NUMERIC(5,2).
+                        if field in {'r_e_final_valor', 'c_t_valor'} and abs(numero) >= 1000:
+                            continue
+                        setattr(practica, field, numero)
+                    except (ValueError, TypeError):
+                        continue
+                elif field in integer_fields:
+                    if isinstance(value, (datetime, date, time)):
+                        continue
+                    try:
+                        setattr(practica, field, int(float(value)))
+                    except (ValueError, TypeError):
+                        continue
+                else:
+                    setattr(practica, field, str(value).strip())
+            _sincronizar_datos_practica(practica, alumno)
+            db.session.add(practica)
+            savepoint.commit()
             insertados += 1
-
         except Exception as e:
+            savepoint.rollback()
             errores.append(f'Fila {fila_num}: {str(e)}')
 
     try:
@@ -804,5 +1407,6 @@ def procesar_excel_practicas(filepath):
     except Exception as e:
         db.session.rollback()
         errores.append(f'Error al guardar en base de datos: {str(e)}')
+        insertados = duplicados = 0
 
     return {'insertados': insertados, 'duplicados': duplicados, 'errores': errores}

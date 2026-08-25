@@ -9,7 +9,6 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./migration_vinculacion.sql:/docker-entrypoint-initdb.d/1_migration_vinculacion.sql
-      - ./migration_practicas.sql:/docker-entrypoint-initdb.d/2_migration_practicas.sql
     ports:
       - "5432:5432"
     healthcheck:

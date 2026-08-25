@@ -42,6 +42,8 @@
                 <th>Tipo</th>
                 <th>Sector</th>
                 <th>Domicilio</th>
+                <th>Rubro</th>
+                <th>Área de interés</th>
                 <th>Contacto</th>
                 <th>Teléfono</th>
                 <th>Correo</th>
@@ -61,6 +63,8 @@
                     {% endif %}
                 </td>
                 <td>{{ d.domicilio or '-' }}</td>
+                <td>{{ d.rubro or '-' }}</td>
+                <td>{{ d.area_interes or '-' }}</td>
                 <td>{{ d.contacto or '-' }}</td>
                 <td>{{ d.telefono or '-' }}</td>
                 <td>{{ d.correo or '-' }}</td>
@@ -77,7 +81,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="8" style="text-align: center; padding: 20px;">No hay dependencias registradas.</td>
+                <td colspan="10" style="text-align: center; padding: 20px;">No hay dependencias registradas.</td>
             </tr>
             {% endfor %}
         </tbody>

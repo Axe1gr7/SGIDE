@@ -4,7 +4,7 @@
 {% block content %}
 <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
     <div style="margin-bottom: 20px;">
-        <a href="{{ url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al expediente</a>
+        <a href="{{ url_for('practicas.expediente', alumno_id=expediente.alumno_id) if es_practicas else url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver al expediente</a>
     </div>
     
     <h2>{% if documento %}Editar{% else %}Agregar{% endif %} Documento</h2>
@@ -51,7 +51,7 @@
         </div>
         
         <div style="display: flex; gap: 10px; margin-top: 30px;">
-            <a href="{{ url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" class="glass-btn glass-btn-outline">Cancelar</a>
+            <a href="{{ url_for('practicas.expediente', alumno_id=expediente.alumno_id) if es_practicas else url_for(modulo_prefix ~ '.detalle', id=expediente.id) }}" class="glass-btn glass-btn-outline">Cancelar</a>
             <button type="submit" class="glass-btn">Guardar Documento</button>
         </div>
     </form>

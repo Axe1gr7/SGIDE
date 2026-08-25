@@ -427,7 +427,7 @@ def exportar_compartidos():
             'Matrícula': a.matricula,
             'Alumno': a.nombre,
             'Carrera': a.carrera.nombre if a.carrera else '-',
-            'Semestre': a.semestre or '-',
+            'Generación': a.generacion_completa or '-',
             'Estatus Global': a.estatus or '-',
             '¿Apto para Estancia?': 'Sí' if a.puede_realizar_estancia else 'No',
             'Universidad Asignada': exp_v.universidad.nombre if exp_v and exp_v.universidad else 'No asignada',

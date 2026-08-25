@@ -3,7 +3,8 @@ import subprocess
 from datetime import datetime
 from flask import current_app
 from docxtpl import DocxTemplate
-from app.models import Alumno, Expediente
+from app.extensions import db
+from app.models import Alumno, Dependencia, Expediente, Practica
 from app.services.file_manager import generar_ruta_relativa_expediente
 
 
@@ -44,6 +45,15 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
     modulo_nombres = {'p': 'Prácticas Profesionales', 's': 'Servicio Social', 'v': 'Vinculación'}
 
     dependencia = expediente.dependencia
+    if tipo_modulo == 'p':
+        practica = Practica.query.filter_by(
+            alumno_id=alumno_id, is_deleted=False
+        ).order_by(Practica.id.desc()).first()
+        if practica and practica.empresa:
+            dependencia = Dependencia.query.filter(
+                db.func.lower(Dependencia.nombre) == practica.empresa.strip().lower(),
+                Dependencia.is_deleted == False,
+            ).first() or dependencia
     carrera_nombre = alumno.carrera.nombre if alumno.carrera else ''
 
     context = {

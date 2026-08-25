@@ -1,4 +1,4 @@
-﻿-- =========================================================
+-- =========================================================
 -- Migracion: Tabla del modulo de Practicas Profesionales
 -- Fecha: 2026-08-19
 -- Origen: PRACTICAS_1.xlsx (65 columnas mapeadas exactamente)
@@ -8,8 +8,9 @@
 
 CREATE TABLE IF NOT EXISTS practicas (
 
-    -- Clave primaria del sistema
+    -- Clave primaria y ForeignKey del sistema
     id                   SERIAL PRIMARY KEY,
+    alumno_id            INTEGER REFERENCES alumnos(id),
 
     -- Columna 1: No. REGISTRO
     no_registro          INTEGER,

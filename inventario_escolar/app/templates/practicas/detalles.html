@@ -9,7 +9,7 @@
 </div>
 
 {# ── Barra de acciones ──────────────────────────────────────────────────── #}
-<div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+<div style="position: sticky; top: 0; z-index: 10; display: flex; gap: 12px; align-items: center; margin: -12px 0 20px; padding: 12px 0; flex-wrap: wrap; background: var(--bg-primary);">
     <button id="btnOpenFilters" class="glass-btn" style="position: relative;">
         <i class="fa-solid fa-filter"></i> FILTROS
         {% if filtros_activos > 0 %}
@@ -17,10 +17,20 @@
         {% endif %}
     </button>
 
-    {# Build export URL with same query params #}
-    <a href="{{ url_for('practicas.exportar_detalles', **request.args) }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
+    {# Preserve repeated cols parameters when building the export URL. #}
+    {% set export_args = request.args.to_dict(flat=False) %}
+    <a href="{{ url_for('practicas.exportar_detalles', **export_args) }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
         <i class="fa-solid fa-file-excel"></i> Descargar Excel
     </a>
+
+    <div style="margin-left: auto; display: flex; gap: 8px;">
+        <a id="btnEditSelected" href="#" class="glass-btn glass-btn-outline" style="white-space: nowrap; opacity: 0.5; pointer-events: none;">
+            <i class="fa-solid fa-pen"></i> Editar seleccionado
+        </a>
+        <button id="btnDeleteSelected" type="button" class="glass-btn glass-btn-danger" style="white-space: nowrap; opacity: 0.5;" disabled>
+            <i class="fa-solid fa-trash"></i> Eliminar seleccionado
+        </button>
+    </div>
 
     {% if filtros_activos > 0 %}
     <a href="{{ url_for('practicas.detalles') }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
@@ -101,6 +111,7 @@
     <table class="glass-table" style="min-width: {{ columnas_activas|length * 130 }}px;">
         <thead>
             <tr>
+                <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2;">Sel.</th>
                 <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2;">#</th>
                 {% for field, header in columnas_mapa %}
                 {% if field in columnas_activas %}
@@ -112,6 +123,7 @@
         <tbody>
             {% for p in practicas %}
             <tr>
+                <td style="text-align: center; white-space: nowrap;"><input type="radio" name="selected_practica" value="{{ p.id }}" data-edit-url="{{ url_for('practicas.editar_practica', practica_id=p.id) }}" data-action-delete-url="{{ url_for('practicas.eliminar_practica', practica_id=p.id) }}" data-delete-name="el registro {{ p.no_registro }}" {% if selected_practica_id == p.id %}checked{% endif %} aria-label="Seleccionar registro {{ p.no_registro }}"></td>
                 <td style="white-space: nowrap; color: var(--text-muted); font-size: 0.82rem;">{{ loop.index }}</td>
                 {% for field, header in columnas_mapa %}
                 {% if field in columnas_activas %}
@@ -164,9 +176,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnCancel = document.getElementById('btnCancelFilters');
     const btnSelectAll = document.getElementById('btnSelectAll');
     const btnDeselectAll = document.getElementById('btnDeselectAll');
+    const btnEditSelected = document.getElementById('btnEditSelected');
+    const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+    const selectedRows = document.querySelectorAll('input[name="selected_practica"]');
 
     function openModal() { overlay.classList.add('active'); }
     function closeModal() { overlay.classList.remove('active'); }
+
+    function updateSelectedActions(input) {
+        btnEditSelected.href = input.dataset.editUrl;
+        btnEditSelected.style.opacity = '1';
+        btnEditSelected.style.pointerEvents = 'auto';
+        btnDeleteSelected.disabled = false;
+        btnDeleteSelected.style.opacity = '1';
+        btnDeleteSelected.dataset.actionDeleteUrl = input.dataset.actionDeleteUrl;
+        btnDeleteSelected.dataset.deleteName = input.dataset.deleteName;
+    }
+
+    selectedRows.forEach(function (input) {
+        input.addEventListener('change', function () { updateSelectedActions(input); });
+        input.closest('tr').addEventListener('click', function (event) {
+            if (event.target.closest('a, button, input, select, textarea, label')) return;
+            input.checked = true;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        if (input.checked) updateSelectedActions(input);
+    });
+    btnDeleteSelected.addEventListener('click', function () {
+        const form = document.getElementById('deleteForm');
+        const nameSpan = document.getElementById('deleteName');
+        if (!this.disabled && form) {
+            form.action = this.dataset.actionDeleteUrl;
+            if (nameSpan) nameSpan.textContent = this.dataset.deleteName;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+    });
 
     btnOpen.addEventListener('click', openModal);
     btnClose.addEventListener('click', closeModal);

@@ -92,29 +92,36 @@
 
                 {# ── Estatus Prácticas ── #}
                 <td style="text-align: center; white-space: nowrap;">
-                    {% if item.apto_practicas %}
-                    <span style="color: var(--success); font-weight: 600;">
-                        <i class="fa-solid fa-circle-check"></i> Apto
-                    </span>
+                    {% if item.estatus_practicas == 'CONCLUIDO' %}
+                    <span style="color: var(--success); font-weight: 600;"><i class="fa-solid fa-flag-checkered"></i> CONCLUIDO</span>
+                    {% elif item.estatus_practicas == 'EN TRÁMITE' %}
+                    <span style="color: var(--warning); font-weight: 600;"><i class="fa-solid fa-clock"></i> EN TRÁMITE</span>
+                    {% elif item.estatus_practicas == 'BAJA' %}
+                    <span style="color: var(--danger); font-weight: 600;"><i class="fa-solid fa-circle-xmark"></i> BAJA</span>
+                    {% elif item.estatus_practicas == 'APTO' %}
+                    <span style="color: var(--accent); font-weight: 600;"><i class="fa-solid fa-circle-check"></i> APTO</span>
                     {% else %}
-                    <span style="color: var(--danger); font-weight: 600;">
-                        <i class="fa-solid fa-circle-xmark"></i> No apto
-                    </span>
+                    <span style="color: var(--text-muted); font-weight: 600;">—</span>
                     {% endif %}
                 </td>
 
                 {# ── Acción ── #}
                 <td style="text-align: center; white-space: nowrap;">
                     {% if item.tiene_practica %}
-                    <a href="{{ url_for('practicas.detalle_practica', alumno_id=a.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
-                        <i class="fa-solid fa-folder-open"></i> VER DETALLES
-                    </a>
-                    {% elif item.apto_practicas %}
+                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+                        <a href="{{ url_for('practicas.detalles', search=(item.practica.no_constancia or a.matricula), practica_id=item.practica_id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
+                            <i class="fa-solid fa-table-list"></i> VER DETALLES
+                        </a>
+                        <a href="{{ url_for('practicas.expediente', alumno_id=a.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
+                            <i class="fa-solid fa-folder-open"></i> VER EXPEDIENTE
+                        </a>
+                    </div>
+                    {% elif not item.apto_practicas %}
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Necesita completar el SS</span>
+                    {% else %}
                     <a href="{{ url_for('practicas.asignar', alumno_id=a.id) }}" class="glass-btn glass-btn-small" style="white-space: nowrap;">
                         <i class="fa-solid fa-plus"></i> ASIGNAR PRÁCTICAS
                     </a>
-                    {% else %}
-                    <span style="color: var(--text-muted); font-size: 0.85rem;">Requiere completar SS</span>
                     {% endif %}
                 </td>
             </tr>
