@@ -5,43 +5,43 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
-  --prac-blur: blur(20px) saturate(180%);
-  --prac-glass: rgba(255,255,255,0.18);
-  --prac-border: rgba(255,255,255,0.35);
-  --prac-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
-  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
-  --prac-radius: 20px;
+  --srv-blur: blur(20px) saturate(180%);
+  --srv-glass: rgba(255,255,255,0.18);
+  --srv-border: rgba(255,255,255,0.35);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --srv-radius: 20px;
 }
 [data-theme="dark"] {
-  --prac-glass: rgba(15,23,42,0.55);
-  --prac-border: rgba(255,255,255,0.12);
-  --prac-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  --srv-glass: rgba(15,23,42,0.55);
+  --srv-border: rgba(255,255,255,0.12);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
-.prac-breadcrumb {
+.srv-breadcrumb {
   display: flex; align-items: center; gap: 8px;
   font-size: 0.9rem; color: var(--text-muted);
   margin-bottom: 20px;
 }
-.prac-breadcrumb a { color: var(--accent); text-decoration: none; font-weight: 500; }
-.prac-breadcrumb a:hover { text-decoration: underline; }
+.srv-breadcrumb a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.srv-breadcrumb a:hover { text-decoration: underline; }
 
-.prac-hero {
+.srv-hero {
   position: relative;
   padding: 32px 0 24px;
   margin-bottom: 32px;
   overflow: hidden;
 }
-.prac-hero::before {
+.srv-hero::before {
   content: '';
   position: absolute;
   inset: -40% -20%;
-  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(79,70,229,0.15) 0%, transparent 70%),
-              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(16,185,129,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(59,130,246,0.12) 0%, transparent 70%);
   pointer-events: none;
 }
-.prac-hero-content {
+.srv-hero-content {
   position: relative;
   display: flex;
   align-items: center;
@@ -49,75 +49,75 @@
   flex-wrap: wrap;
   gap: 16px;
 }
-.prac-hero-title {
+.srv-hero-title {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-.prac-hero-icon {
+.srv-hero-icon {
   width: 56px; height: 56px;
-  background: var(--accent-gradient);
+  background: linear-gradient(135deg, #10b981, #34d399);
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem; color: #fff;
-  box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+  box-shadow: 0 8px 24px rgba(16,185,129,0.35);
   flex-shrink: 0;
 }
-.prac-hero h1 {
+.srv-hero h1 {
   font-size: 1.85rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: var(--accent-gradient);
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.prac-hero p {
+.srv-hero p {
   color: var(--text-muted);
   font-size: 0.95rem;
   margin-top: 4px;
 }
 
-.prac-stats {
+.srv-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   margin-bottom: 36px;
 }
-.prac-stat-card {
-  background: var(--prac-glass);
-  backdrop-filter: var(--prac-blur);
-  -webkit-backdrop-filter: var(--prac-blur);
-  border: 1px solid var(--prac-border);
-  border-radius: var(--prac-radius);
+.srv-stat-card {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: var(--srv-radius);
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: var(--prac-shadow);
+  box-shadow: var(--srv-shadow);
   transition: transform 0.3s ease;
 }
-.prac-stat-card:hover {
+.srv-stat-card:hover {
   transform: translateY(-4px);
 }
-.prac-stat-icon {
+.srv-stat-icon {
   width: 48px; height: 48px;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.3rem; color: #fff;
   flex-shrink: 0;
 }
-.prac-stat-info { display: flex; flex-direction: column; }
-.prac-stat-number { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-.prac-stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+.srv-stat-info { display: flex; flex-direction: column; }
+.srv-stat-number { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
+.srv-stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 
-.prac-chart-panel {
-  background: var(--prac-glass);
-  backdrop-filter: var(--prac-blur);
-  -webkit-backdrop-filter: var(--prac-blur);
-  border: 1px solid var(--prac-border);
-  border-radius: var(--prac-radius);
-  box-shadow: var(--prac-shadow);
+.srv-chart-panel {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: var(--srv-radius);
+  box-shadow: var(--srv-shadow);
   padding: 24px;
   min-height: 320px;
   display: flex;
@@ -128,15 +128,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="prac-hero">
-  <div class="prac-hero-content">
-    <div class="prac-hero-title">
-      <div class="prac-hero-icon">
+<div class="srv-hero">
+  <div class="srv-hero-content">
+    <div class="srv-hero-title">
+      <div class="srv-hero-icon">
         <i class="fa-solid fa-chart-pie"></i>
       </div>
       <div>
-        <div class="prac-breadcrumb">
-          <a href="{{ url_for('practicas.menu') }}">← Volver al menú</a>
+        <div class="srv-breadcrumb">
+          <a href="{{ url_for('servicio.menu') }}">← Volver al menú</a>
         </div>
         <h1>Dashboard — {{ modulo_label }}</h1>
         <p>Estadísticas y resumen de alumnos e indicadores del módulo</p>
@@ -146,67 +146,67 @@
 </div>
 
 {# ── Tarjetas Informativas ──────────────────────────────────────────────── #}
-<div class="prac-stats">
-  <div class="prac-stat-card">
-    <div class="prac-stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
-      <i class="fa-solid fa-circle-check"></i>
-    </div>
-    <div class="prac-stat-info">
-      <span class="prac-stat-number">{{ tienen_derecho }}</span>
-      <span class="prac-stat-label">Tienen Derecho</span>
-    </div>
-  </div>
-
-  <div class="prac-stat-card">
-    <div class="prac-stat-icon" style="background: linear-gradient(135deg, #ef4444, #f87171); box-shadow: 0 4px 15px rgba(239,68,68,0.3);">
-      <i class="fa-solid fa-circle-xmark"></i>
-    </div>
-    <div class="prac-stat-info">
-      <span class="prac-stat-number">{{ no_tienen_derecho }}</span>
-      <span class="prac-stat-label">No Tienen Derecho</span>
-    </div>
-  </div>
-
-  <div class="prac-stat-card">
-    <div class="prac-stat-icon" style="background: linear-gradient(135deg, #3b82f6, #60a5fa); box-shadow: 0 4px 15px rgba(59,130,246,0.3);">
+<div class="srv-stats">
+  <div class="srv-stat-card">
+    <div class="srv-stat-icon" style="background: linear-gradient(135deg, #3b82f6, #60a5fa); box-shadow: 0 4px 15px rgba(59,130,246,0.3);">
       <i class="fa-solid fa-folder-open"></i>
     </div>
-    <div class="prac-stat-info">
-      <span class="prac-stat-number">{{ total_practicas }}</span>
-      <span class="prac-stat-label">Prácticas Registradas</span>
+    <div class="srv-stat-info">
+      <span class="srv-stat-number">{{ total_expedientes }}</span>
+      <span class="srv-stat-label">Total Expedientes</span>
     </div>
   </div>
 
-  <div class="prac-stat-card">
-    <div class="prac-stat-icon" style="background: linear-gradient(135deg, #4f46e5, #6366f1); box-shadow: 0 4px 15px rgba(79,70,229,0.3);">
-      <i class="fa-solid fa-trophy"></i>
+  <div class="srv-stat-card">
+    <div class="srv-stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+      <i class="fa-solid fa-circle-check"></i>
     </div>
-    <div class="prac-stat-info">
-      <span class="prac-stat-number">{{ concluidas }}</span>
-      <span class="prac-stat-label">Concluidas</span>
+    <div class="srv-stat-info">
+      <span class="srv-stat-number">{{ completados }}</span>
+      <span class="srv-stat-label">Servicio Concluido</span>
+    </div>
+  </div>
+
+  <div class="srv-stat-card">
+    <div class="srv-stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 4px 15px rgba(245,158,11,0.3);">
+      <i class="fa-solid fa-clock"></i>
+    </div>
+    <div class="srv-stat-info">
+      <span class="srv-stat-number">{{ en_tramite }}</span>
+      <span class="srv-stat-label">En Trámite</span>
+    </div>
+  </div>
+
+  <div class="srv-stat-card">
+    <div class="srv-stat-icon" style="background: linear-gradient(135deg, #ef4444, #f87171); box-shadow: 0 4px 15px rgba(239,68,68,0.3);">
+      <i class="fa-solid fa-hourglass-start"></i>
+    </div>
+    <div class="srv-stat-info">
+      <span class="srv-stat-number">{{ pendientes }}</span>
+      <span class="srv-stat-label">Pendientes</span>
     </div>
   </div>
 </div>
 
 {# ── Sección de Gráficos ─────────────────────────────────────────────────── #}
 <div class="charts-grid" style="margin-bottom: 24px;">
-    <div class="prac-chart-panel">
+    <div class="srv-chart-panel">
         <div class="chart-container" style="position: relative; height: 260px; width: 100%;">
-            <canvas id="chartDerecho"></canvas>
+            <canvas id="chartEstatus"></canvas>
         </div>
     </div>
     
-    <div class="prac-chart-panel">
+    <div class="srv-chart-panel">
         <div class="chart-container" style="position: relative; height: 260px; width: 100%;">
-            <canvas id="chartEstatus"></canvas>
+            <canvas id="chartSectores"></canvas>
         </div>
     </div>
 </div>
 
 <div class="charts-grid">
-    <div class="prac-chart-panel" style="grid-column: span 2; min-height: 340px;">
+    <div class="srv-chart-panel" style="grid-column: span 2; min-height: 340px;">
         <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
-            <canvas id="chartProcesos"></canvas>
+            <canvas id="chartCarreras"></canvas>
         </div>
     </div>
 </div>
@@ -215,7 +215,6 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Función para obtener colores en base al tema
     function getThemeColors() {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         return {
@@ -226,17 +225,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let colors = getThemeColors();
     
-    // 1. Gráfico de Derecho a Prácticas
-    const ctxDerecho = document.getElementById('chartDerecho').getContext('2d');
-    const chartDerecho = new Chart(ctxDerecho, {
+    // 1. Estatus de Servicio Social
+    const ctxEstatus = document.getElementById('chartEstatus').getContext('2d');
+    const chartEstatus = new Chart(ctxEstatus, {
         type: 'doughnut',
         data: {
-            labels: ['Tienen Derecho', 'No Tienen Derecho'],
+            labels: ['Concluido', 'En Trámite', 'Pendientes'],
             datasets: [{
-                data: [{{ tienen_derecho }}, {{ no_tienen_derecho }}],
+                data: [{{ completados }}, {{ en_tramite }}, {{ pendientes }}],
                 backgroundColor: [
-                    'rgba(16, 185, 129, 0.85)', // Verde Success
-                    'rgba(239, 68, 68, 0.85)'   // Rojo Danger
+                    'rgba(16, 185, 129, 0.85)',
+                    'rgba(245, 158, 11, 0.85)',
+                    'rgba(239, 68, 68, 0.85)'
                 ],
                 borderWidth: 0,
                 spacing: 4,
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 title: {
                     display: true,
-                    text: 'Derecho a Prácticas Profesionales',
+                    text: 'Estatus de Expedientes de Servicio Social',
                     color: colors.textColor,
                     font: { family: 'Inter', size: 15, weight: '600' },
                     padding: { bottom: 12 }
@@ -263,17 +263,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 2. Gráfico de Estatus de Prácticas
-    const ctxEstatus = document.getElementById('chartEstatus').getContext('2d');
-    const chartEstatus = new Chart(ctxEstatus, {
+    // 2. Distribución por Sector
+    const ctxSectores = document.getElementById('chartSectores').getContext('2d');
+    const chartSectores = new Chart(ctxSectores, {
         type: 'doughnut',
         data: {
-            labels: ['Apto', 'En Trámite', 'Concluido', 'Baja', 'Sin Estatus'],
+            labels: {{ sector_data.keys() | list | tojson }},
             datasets: [{
-                data: [{{ aptos }}, {{ en_tramite }}, {{ concluidas }}, {{ estatus_counts['BAJA'] }}, {{ sin_estatus }}],
+                data: {{ sector_data.values() | list | tojson }},
                 backgroundColor: [
                     'rgba(59, 130, 246, 0.85)',
-                    'rgba(245, 158, 11, 0.85)',
                     'rgba(16, 185, 129, 0.85)',
                     'rgba(239, 68, 68, 0.85)',
                     'rgba(148, 163, 184, 0.85)'
@@ -294,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 title: {
                     display: true,
-                    text: 'Estatus de Prácticas Registradas',
+                    text: 'Distribución por Sector (Municipal / Estatal / Salud)',
                     color: colors.textColor,
                     font: { family: 'Inter', size: 15, weight: '600' },
                     padding: { bottom: 12 }
@@ -303,15 +302,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 3. Gráfico de Procesos
-    const ctxProcesos = document.getElementById('chartProcesos').getContext('2d');
-    const chartProcesos = new Chart(ctxProcesos, {
+    // 3. Distribución por Carrera
+    const ctxCarreras = document.getElementById('chartCarreras').getContext('2d');
+    const chartCarreras = new Chart(ctxCarreras, {
         type: 'bar',
         data: {
-            labels: {{ proceso_data.keys() | list | tojson }},
+            labels: {{ carrera_data.keys() | list | tojson }},
             datasets: [{
-                data: {{ proceso_data.values() | list | tojson }},
-                backgroundColor: 'rgba(79, 70, 229, 0.8)', // Indigo Accent
+                data: {{ carrera_data.values() | list | tojson }},
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
                 borderRadius: 6,
                 borderSkipped: false
             }]
@@ -323,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 legend: { display: false },
                 title: {
                     display: true,
-                    text: 'Distribución de Prácticas por Tipo de Proceso',
+                    text: 'Expedientes por Carrera',
                     color: colors.textColor,
                     font: { family: 'Inter', size: 15, weight: '600' },
                     padding: { bottom: 12 }
@@ -343,12 +342,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Observer para actualizar los colores de los gráficos cuando cambie el tema
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.attributeName === 'data-theme') {
                 const newColors = getThemeColors();
-                [chartDerecho, chartEstatus, chartProcesos].forEach(chart => {
+                [chartEstatus, chartSectores, chartCarreras].forEach(chart => {
                     if (chart) {
                         chart.options.plugins.title.color = newColors.textColor;
                         if (chart.options.plugins.legend && chart.options.plugins.legend.labels) {

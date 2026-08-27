@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% block title %}Importación Masiva - {{ modulo_label }}{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --srv-blur: blur(20px) saturate(180%);
+  --srv-glass: rgba(255,255,255,0.18);
+  --srv-border: rgba(255,255,255,0.35);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --srv-radius: 20px;
+}
+[data-theme="dark"] {
+  --srv-glass: rgba(15,23,42,0.55);
+  --srv-border: rgba(255,255,255,0.12);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.srv-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.srv-breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+.srv-breadcrumb a:hover { color: var(--accent); }
+
+.srv-hero {
+  position: relative;
+  padding: 28px 0 20px;
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.srv-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(139,92,246,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.srv-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.srv-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.srv-hero-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(139,92,246,0.3);
+  flex-shrink: 0;
+}
+.srv-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.srv-hero p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.srv-card-panel {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: var(--srv-radius);
+  box-shadow: var(--srv-shadow);
+  padding: 32px;
+}
+
+.srv-drop-zone {
+  border: 2px dashed var(--srv-border);
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.3s;
+  background: rgba(0,0,0,0.02);
+}
+.srv-drop-zone:hover, .srv-drop-zone.drag-over {
+  background: rgba(16,185,129,0.06);
+  border-color: var(--success);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="srv-hero">
+  <div class="srv-hero-content">
+    <div class="srv-hero-title">
+      <div class="srv-hero-icon">
+        <i class="fa-solid fa-file-import"></i>
+      </div>
+      <div>
+        <div class="srv-breadcrumb">
+          <a href="{{ url_for('servicio.menu') }}">← Volver al menú</a>
+        </div>
+        <h1>Importación Masiva — Servicio Social</h1>
+        <p>Carga de expedientes desde hojas de Excel y vinculación masiva de constancias PDF en ZIP.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+    <div class="srv-card-panel" style="flex: 1; min-width: 300px; max-width: 900px; margin: 0 auto;">
+        
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('servicio.importar') }}">
+            <!-- Sección Excel -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 1.2rem;">
+                    <i class="fa-solid fa-file-excel" style="color: var(--success);"></i> 1. Cargar Archivo Excel de Expedientes
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+                    Sube una hoja de Excel conteniendo claves de expediente, datos del alumno y asignación de dependencias.
+                </p>
+                <div id="dropZoneExcel" class="srv-drop-zone" onclick="document.getElementById('fileExcel').click()">
+                    <div style="font-size: 2.8rem; margin-bottom: 12px; color: var(--success);"><i class="fa-solid fa-file-arrow-up"></i></div>
+                    <h4 style="margin-bottom: 8px; font-size: 1.1rem;">Selecciona o arrastra tu archivo Excel</h4>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">Formatos aceptados: .xlsx, .xls</p>
+                    <div id="nameExcel" style="font-weight: 600; color: var(--success); margin-bottom: 8px;"></div>
+                    <input type="file" name="archivo_excel" id="fileExcel" accept=".xlsx, .xls" style="display: none;">
+                    <button type="button" class="glass-btn glass-btn-outline glass-btn-small">Explorar Excel...</button>
+                </div>
+            </div>
+
+            <!-- Sección ZIP de PDFs -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 1.2rem;">
+                    <i class="fa-solid fa-file-zipper" style="color: var(--info);"></i> 2. Cargar Archivo ZIP con PDFs (Opcional)
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+                    Sube una carpeta comprimida ZIP con los documentos PDF firmados para asignarlos automáticamente a los expedientes.
+                </p>
+                <div id="dropZoneZip" class="srv-drop-zone" onclick="document.getElementById('fileZip').click()">
+                    <div style="font-size: 2.8rem; margin-bottom: 12px; color: var(--info);"><i class="fa-solid fa-file-zipper"></i></div>
+                    <h4 style="margin-bottom: 8px; font-size: 1.1rem;">Selecciona o arrastra tu paquete ZIP</h4>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">Formato aceptado: .zip</p>
+                    <div id="nameZip" style="font-weight: 600; color: var(--info); margin-bottom: 8px;"></div>
+                    <input type="file" name="archivo_zip" id="fileZip" accept=".zip" style="display: none;">
+                    <button type="button" class="glass-btn glass-btn-outline glass-btn-small">Explorar ZIP...</button>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <button type="submit" class="glass-btn" style="width: 100%; max-width: 420px; padding: 14px; font-size: 1.05rem;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Iniciar Importación Masiva
+                </button>
+            </div>
+        </form>
+
+        {% if resultado or resultado_zip %}
+        <div style="background: rgba(0,0,0,0.02); border-radius: 16px; padding: 24px; border: 1px solid var(--srv-border); margin-top: 32px;">
+            <h4 style="margin-bottom: 18px; border-bottom: 1px solid var(--srv-border); padding-bottom: 10px; font-size: 1.15rem;">Resumen de Resultados</h4>
+            
+            {% if resultado %}
+            <h5 style="margin-bottom: 12px; color: var(--accent);"><i class="fa-solid fa-file-excel"></i> Resultados Excel</h5>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 130px; text-align: center; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16,185,129,0.3); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);">{{ resultado.insertados }}</div>
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">Insertados</div>
+                </div>
+                <div style="flex: 1; min-width: 130px; text-align: center; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59,130,246,0.3); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--info);">{{ resultado.duplicados }}</div>
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">Duplicados</div>
+                </div>
+                <div style="flex: 1; min-width: 130px; text-align: center; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239,68,68,0.3); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--danger);">{{ resultado.errores|length }}</div>
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">Errores</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if resultado_zip %}
+            <h5 style="margin-bottom: 12px; color: var(--info);"><i class="fa-solid fa-file-zipper"></i> Resultados ZIP PDFs</h5>
+            <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 140px; text-align: center; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16,185,129,0.3); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);">{{ resultado_zip.asignados }}</div>
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">PDFs Asignados</div>
+                </div>
+                <div style="flex: 1; min-width: 140px; text-align: center; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245,158,11,0.3); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">{{ resultado_zip.no_asignados }}</div>
+                    <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">No Asignados</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const fileExcel = document.getElementById('fileExcel');
+const nameExcel = document.getElementById('nameExcel');
+if (fileExcel) {
+    fileExcel.addEventListener('change', () => {
+        if (fileExcel.files.length > 0) nameExcel.textContent = '📄 ' + fileExcel.files[0].name;
+    });
+}
+
+const fileZip = document.getElementById('fileZip');
+const nameZip = document.getElementById('nameZip');
+if (fileZip) {
+    fileZip.addEventListener('change', () => {
+        if (fileZip.files.length > 0) nameZip.textContent = '📦 ' + fileZip.files[0].name;
+    });
+}
+</script>
+{% endblock %}

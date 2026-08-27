@@ -34,7 +34,7 @@
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Servicio'] %}
-            <li><a href="{{ url_for('servicio.lista') }}" class="sidebar-link"><i class="fa-solid fa-handshake-angle"></i> Servicio Social</a></li>
+            <li><a href="{{ url_for('servicio.menu') }}" class="sidebar-link"><i class="fa-solid fa-handshake-angle"></i> Servicio Social</a></li>
             {% endif %}
 
             {% if current_user.role.nombre in ['Super Admin', 'Vinculacion'] %}
@@ -47,7 +47,7 @@
             
             <li><a href="{{ url_for('compartidos.index') }}" class="sidebar-link"><i class="fa-solid fa-folder-tree"></i> Compartidos</a></li>
 
-            {% if current_user.role.nombre == 'Super Admin' %}
+            {% if current_user.role.nombre in ['Super Admin', 'Practicas', 'Servicio', 'Vinculacion'] %}
             <li><a href="{{ url_for('plantillas.lista') }}" class="sidebar-link"><i class="fa-solid fa-file-word"></i> Plantillas Word</a></li>
             {% endif %}
 

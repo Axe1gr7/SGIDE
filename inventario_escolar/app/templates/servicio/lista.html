@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% block title %}Expedientes — {{ modulo_label }}{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --srv-blur: blur(20px) saturate(180%);
+  --srv-glass: rgba(255,255,255,0.18);
+  --srv-border: rgba(255,255,255,0.35);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --srv-radius: 20px;
+}
+[data-theme="dark"] {
+  --srv-glass: rgba(15,23,42,0.55);
+  --srv-border: rgba(255,255,255,0.12);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.srv-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.srv-breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+.srv-breadcrumb a:hover { color: var(--accent); }
+
+.srv-hero {
+  position: relative;
+  padding: 28px 0 20px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.srv-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(59,130,246,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.srv-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.srv-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.srv-hero-icon {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+  flex-shrink: 0;
+}
+.srv-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.srv-action-bar {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; flex-wrap: wrap;
+}
+
+.srv-filter-card {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: var(--srv-radius);
+  padding: 24px;
+  margin-bottom: 28px;
+  box-shadow: var(--srv-shadow);
+}
+
+.srv-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: 0.3s;
+}
+.srv-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.srv-modal {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: 24px;
+  box-shadow: var(--srv-hover-shadow);
+  width: 90%; max-width: 450px;
+  padding: 32px;
+  transform: translateY(20px) scale(0.96);
+  transition: transform 0.3s ease;
+}
+.srv-modal-overlay.active .srv-modal {
+  transform: translateY(0) scale(1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="srv-hero">
+  <div class="srv-hero-content">
+    <div class="srv-hero-title">
+      <div class="srv-hero-icon">
+        <i class="fa-solid fa-folder-tree"></i>
+      </div>
+      <div>
+        <div class="srv-breadcrumb">
+          <a href="{{ url_for('servicio.menu') }}">← Volver al menú</a>
+        </div>
+        <h1>Expedientes de Servicio Social</h1>
+      </div>
+    </div>
+    <div class="srv-action-bar" style="margin-bottom: 0;">
+        <a href="{{ url_for('servicio.importar') }}" class="glass-btn">
+            <i class="fa-solid fa-file-import"></i> Importar Masiva
+        </a>
+        <button class="glass-btn glass-btn-outline" onclick="openModal('modalExportar')">
+            <i class="fa-solid fa-file-export"></i> Exportar a Compartidos
+        </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Exportar -->
+<div id="modalExportar" class="srv-modal-overlay">
+    <div class="srv-modal">
+        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-file-export" style="color: var(--accent);"></i> Exportar a Compartidos
+        </h3>
+        <form action="{{ url_for('servicio.exportar_compartidos') }}" method="POST">
+            <input type="hidden" name="search" value="{{ search or '' }}">
+            <input type="hidden" name="carrera_filter" value="{{ carrera_filter or '' }}">
+            <input type="hidden" name="estado_filter" value="{{ estado_filter or '' }}">
+            <input type="hidden" name="sector_filter" value="{{ sector_filter or '' }}">
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Nombre del Reporte</label>
+                <input type="text" name="nombre_archivo" class="glass-input" value="Reporte_Servicio_Social" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Carpeta Destino (Existente)</label>
+                <select name="carpeta_id" class="glass-select" id="selectCarpeta">
+                    <option value="">-- Seleccionar Carpeta --</option>
+                    {% for c in carpetas_compartidas %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="text-align: center; font-size: 0.9rem; color: var(--text-muted); margin: 10px 0;">- O -</div>
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label">Nueva Carpeta</label>
+                <input type="text" name="nueva_carpeta" class="glass-input" id="inputNuevaCarpeta" placeholder="Ej: Reportes 2026">
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeModal('modalExportar')">Cancelar</button>
+                <button type="submit" class="glass-btn">Exportar y Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="srv-filter-card">
+    <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Buscar</label>
+            <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula del alumno...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label"><i class="fa-solid fa-graduation-cap"></i> Carrera</label>
+            <select name="carrera_filter" class="glass-select">
+                <option value="">Todas</option>
+                {% for c in carreras %}
+                <option value="{{ c.id }}" {% if carrera_filter|string == c.id|string %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label"><i class="fa-solid fa-file-check"></i> Estado Documentos</label>
+            <select name="estado_filter" class="glass-select">
+                <option value="">Todos</option>
+                <option value="Pendiente" {% if estado_filter == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="Entregado" {% if estado_filter == 'Entregado' %}selected{% endif %}>Entregado</option>
+                <option value="Recibido" {% if estado_filter == 'Recibido' %}selected{% endif %}>Recibido</option>
+                <option value="No Realizado" {% if estado_filter == 'No Realizado' %}selected{% endif %}>No Realizado</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label"><i class="fa-solid fa-building-flag"></i> Sector</label>
+            <select name="sector_filter" class="glass-select">
+                <option value="">Todos</option>
+                {% for s in sectores %}
+                <option value="{{ s }}" {% if sector_filter == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="submit" class="glass-btn"><i class="fa-solid fa-filter"></i> Filtrar</button>
+            <a href="{{ url_for('servicio.lista') }}" class="glass-btn glass-btn-outline"><i class="fa-solid fa-rotate-left"></i> Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de Expedientes -->
+<div class="glass-table-wrapper">
+    <table class="glass-table">
+        <thead>
+            <tr>
+                <th style="white-space: nowrap;">Clave Expediente</th>
+                <th>Alumno</th>
+                <th style="white-space: nowrap;">Matrícula</th>
+                <th>Carrera</th>
+                <th style="white-space: nowrap;">Generación</th>
+                <th style="white-space: nowrap;">Estatus Alumno</th>
+                <th style="white-space: nowrap;">Sector</th>
+                <th style="white-space: nowrap; text-align: center;">Documentos</th>
+                <th style="white-space: nowrap; text-align: center;">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in pagination.items %}
+            <tr>
+                <td style="white-space: nowrap;">
+                    <span class="badge badge-info" style="font-size:0.85rem; font-family: monospace;">{{ e.clave_expediente }}</span>
+                </td>
+                <td style="font-weight: 700; color: var(--text-primary);">{{ e.alumno.nombre }}</td>
+                <td style="white-space: nowrap; font-family: monospace; font-weight: 600;">{{ e.alumno.matricula }}</td>
+                <td>{{ e.alumno.carrera.nombre if e.alumno.carrera else '—' }}</td>
+                <td style="white-space: nowrap; color: var(--text-muted);">{{ e.alumno.generacion_completa }}</td>
+                <td style="white-space: nowrap;"><span class="badge badge-{{ e.alumno.estatus }}">{{ e.alumno.estatus }}</span></td>
+                <td style="white-space: nowrap;">
+                    {% if e.sector %}
+                    <span class="badge badge-{{ e.sector }}">{{ e.sector }}</span>
+                    {% else %}
+                    <span style="color: var(--text-muted);">—</span>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap; text-align: center;">
+                    {% set total_docs = e.documentos.filter_by(is_deleted=False).count() %}
+                    {% set entregados = e.documentos.filter_by(is_deleted=False, estado='Entregado').count() %}
+                    <div style="display:inline-flex; align-items:center; gap:6px;">
+                        <span style="font-weight:700;">{{ entregados }}/{{ total_docs }}</span>
+                        {% if total_docs > 0 and entregados == total_docs %}
+                        <span style="color:var(--success);"><i class="fa-solid fa-circle-check"></i></span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td style="white-space: nowrap; text-align: center;">
+                    <a href="{{ url_for('servicio.detalle', id=e.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
+                        <i class="fa-solid fa-folder-open"></i> Ver Expediente
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                    <div>No se encontraron expedientes de Servicio Social.</div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% include 'components/_pagination.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+var selectCarpeta = document.getElementById('selectCarpeta');
+var inputNuevaCarpeta = document.getElementById('inputNuevaCarpeta');
+if (selectCarpeta) {
+    selectCarpeta.addEventListener('change', function() {
+        if (this.value) { inputNuevaCarpeta.value = ''; inputNuevaCarpeta.disabled = true; }
+        else { inputNuevaCarpeta.disabled = false; }
+    });
+}
+if (inputNuevaCarpeta) {
+    inputNuevaCarpeta.addEventListener('input', function() {
+        if (this.value.trim() !== '') { selectCarpeta.value = ''; selectCarpeta.disabled = true; }
+        else { selectCarpeta.disabled = false; }
+    });
+}
+
+document.querySelectorAll('.srv-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+</script>
+{% endblock %}

@@ -41,6 +41,10 @@ def menu():
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
 
+@practicas_bp.route('/plantillas')
+def plantillas():
+    return redirect(url_for('plantillas.lista', modulo='p'))
+
 
 # ── Submódulo: Dashboard ───────────────────────────────────────────────────
 
@@ -424,9 +428,10 @@ def _practicas_finalizadas(practicas):
 def alumnos():
     page = request.args.get('page', 1, type=int)
     carrera_filter = request.args.get('carrera_filter')
-    search = request.args.get('search')
+    search = request.args.get('search', '').strip()
     estatus_filter = request.args.get('estatus_filter')
     solo_aptos = request.args.get('solo_aptos')
+    tipo_consulta = request.args.get('tipo_consulta', 'todos')
 
     query = active_query(Alumno)
 
@@ -440,33 +445,32 @@ def alumnos():
     if estatus_filter:
         query = query.filter(Alumno.estatus == estatus_filter)
 
-    # Aplicar la elegibilidad antes de paginar. De lo contrario alumnos de
-    # generaciones sin derecho a Prácticas ocupan páginas y ocultan alumnos
-    # que sí deben aparecer.
-    candidatos = query.order_by(Alumno.nombre).all()
-    elegibles = []
-    for candidato in candidatos:
-        ss_completo = _check_ss_completo(candidato)
-        if ss_completo:
-            elegibles.append(candidato.id)
-
-    query = query.filter(Alumno.id.in_(elegibles)).order_by(Alumno.nombre)
-    pagination = query.paginate(page=page, per_page=20, error_out=False)
-
-    carreras = active_query(Carrera).all()
-    estatuses = ['Activo', 'Inactivo', 'Egresado', 'Servicio Finalizado']
-
-    # Build enriched data for each alumno
+    all_candidatos = query.order_by(Alumno.nombre).all()
     alumnos_data = []
-    for alumno in pagination.items:
+
+    for alumno in all_candidatos:
         ss_completo = _check_ss_completo(alumno)
         practicas = _get_practicas_for_alumno(alumno)
         practica = practicas[-1] if practicas else None
+        practicas_concluidas = _practicas_finalizadas(practicas)
+
         estatus_practicas = (
             practica.observaciones
             if practica and practica.observaciones in Practica.OBSERVACIONES_OPTS
-            else ('APTO' if ss_completo else None)
+            else ('CONCLUIDO' if practicas_concluidas else ('APTO' if ss_completo else None))
         )
+
+        # Filtro según tipo_consulta
+        if tipo_consulta == 'aprobados' and not practicas_concluidas:
+            continue
+        elif tipo_consulta == 'aptos' and not ss_completo:
+            continue
+        elif tipo_consulta == 'en_tramite' and estatus_practicas != 'EN TRÁMITE':
+            continue
+
+        if solo_aptos and not ss_completo:
+            continue
+
         alumnos_data.append({
             'alumno': alumno,
             'ss_completo': ss_completo,
@@ -475,15 +479,37 @@ def alumnos():
             'tiene_practica': practica is not None,
             'practica': practica,
             'practica_id': practica.id if practica else None,
-            'practicas_finalizadas': _practicas_finalizadas(practicas),
+            'practicas_finalizadas': practicas_concluidas,
         })
 
-    # Apply solo_aptos filter post-query if needed
-    if solo_aptos:
-        alumnos_data = [a for a in alumnos_data if a['apto_practicas']]
+    # Paginación manual para mantener filtros precisos
+    total = len(alumnos_data)
+    per_page = 20
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_alumnos = alumnos_data[start:end]
+
+    class FakePagination:
+        def __init__(self, page, per_page, total, items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page if total > 0 else 1
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1
+            self.next_num = page + 1
+            self.items = items
+
+    pagination = FakePagination(page, per_page, total, paginated_alumnos)
+
+    carreras = active_query(Carrera).all()
+    estatuses = ['Activo', 'Inactivo', 'Egresado', 'Servicio Finalizado']
 
     return render_template('practicas/alumnos.html',
-                           alumnos_data=alumnos_data,
+                           alumnos_data=paginated_alumnos,
                            pagination=pagination,
                            carreras=carreras,
                            estatuses=estatuses,
@@ -491,6 +517,7 @@ def alumnos():
                            search=search,
                            estatus_filter=estatus_filter,
                            solo_aptos=solo_aptos,
+                           tipo_consulta=tipo_consulta,
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
 

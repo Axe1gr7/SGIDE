@@ -26,6 +26,144 @@ def before_request():
     pass
 
 @servicio_bp.route('/')
+@servicio_bp.route('/menu')
+def menu():
+    total_alumnos = active_query(Alumno).count()
+    total_expedientes = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).count()
+    servicio_finalizado = active_query(Alumno).filter_by(estatus='Servicio Finalizado').count()
+    total_dependencias = active_query(Dependencia).filter(
+        Dependencia.tipo.in_(['Servicio', 'Ambos'])
+    ).count()
+
+    stats = {
+        'total_alumnos': total_alumnos,
+        'total_expedientes': total_expedientes,
+        'servicio_finalizado': servicio_finalizado,
+        'total_dependencias': total_dependencias
+    }
+
+    return render_template('servicio/menu.html',
+                           stats=stats,
+                           modulo_label=MODULO_LABEL,
+                           modulo_prefix=MODULO_PREFIX)
+
+@servicio_bp.route('/plantillas')
+def plantillas():
+    return redirect(url_for('plantillas.lista', modulo='s'))
+
+@servicio_bp.route('/dashboard')
+def dashboard():
+    expedientes = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).all()
+    total_expedientes = len(expedientes)
+
+    completados = 0
+    en_tramite = 0
+    pendientes = 0
+
+    for exp in expedientes:
+        docs = active_query(Documento).filter_by(expediente_id=exp.id).all()
+        fss8 = next((d for d in docs if 'FSS8' in (d.nombre_formato or '') or 'terminacion' in (d.nombre_formato or '').lower()), None)
+        has_entregados = any(d.estado == 'Entregado' for d in docs)
+
+        if (fss8 and fss8.estado == 'Entregado') or (exp.alumno and exp.alumno.estatus == 'Servicio Finalizado'):
+            completados += 1
+        elif has_entregados:
+            en_tramite += 1
+        else:
+            pendientes += 1
+
+    # Conteo por sector
+    sector_counts = {}
+    for sec in SECTORES:
+        sector_counts[sec] = sum(1 for exp in expedientes if exp.sector == sec)
+    sector_counts['Sin asignar'] = sum(1 for exp in expedientes if not exp.sector or exp.sector not in SECTORES)
+
+    # Conteo por carrera
+    carreras = active_query(Carrera).all()
+    carrera_data = {c.nombre: 0 for c in carreras}
+    for exp in expedientes:
+        if exp.alumno and exp.alumno.carrera:
+            nombre_carrera = exp.alumno.carrera.nombre
+            carrera_data[nombre_carrera] = carrera_data.get(nombre_carrera, 0) + 1
+
+    return render_template('servicio/dashboard.html',
+                           total_expedientes=total_expedientes,
+                           completados=completados,
+                           en_tramite=en_tramite,
+                           pendientes=pendientes,
+                           sector_data=sector_counts,
+                           carrera_data=carrera_data,
+                           modulo_label=MODULO_LABEL,
+                           modulo_prefix=MODULO_PREFIX)
+
+@servicio_bp.route('/alumnos')
+def alumnos():
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '').strip()
+    carrera_filter = request.args.get('carrera_filter', '')
+    estatus_filter = request.args.get('estatus_filter', '')
+    solo_aptos = request.args.get('solo_aptos', '')
+
+    query = active_query(Alumno)
+
+    if search:
+        query = query.filter((Alumno.nombre.ilike(f'%{search}%')) | (Alumno.matricula.ilike(f'%{search}%')))
+    if carrera_filter:
+        query = query.filter(Alumno.carrera_id == carrera_filter)
+    if estatus_filter:
+        query = query.filter(Alumno.estatus == estatus_filter)
+
+    all_alumnos = query.all()
+    alumnos_data = []
+
+    for a in all_alumnos:
+        exp = active_query(Expediente).filter_by(alumno_id=a.id, tipo_modulo=MODULO_TIPO).first()
+        is_finalizado = a.estatus == 'Servicio Finalizado' or (exp and any('FSS8' in (d.nombre_formato or '') and d.estado == 'Entregado' for d in exp.documentos))
+        has_expediente = exp is not None
+
+        if solo_aptos and is_finalizado:
+            continue
+
+        alumnos_data.append({
+            'alumno': a,
+            'expediente': exp,
+            'has_expediente': has_expediente,
+            'is_finalizado': is_finalizado,
+            'dependencia': exp.dependencia if exp else None
+        })
+
+    total = len(alumnos_data)
+    per_page = 20
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_alumnos = alumnos_data[start:end]
+
+    carreras = active_query(Carrera).all()
+    estatuses = ['Activo', 'Inactivo', 'Servicio Finalizado', 'Egresado']
+    dependencias = active_query(Dependencia).filter(Dependencia.tipo.in_(['Servicio', 'Ambos'])).all()
+    carpetas_compartidas = active_query(CarpetaCompartida).all()
+
+    return render_template('servicio/alumnos.html',
+                           alumnos_data=paginated_alumnos,
+                           page=page,
+                           total_pages=total_pages,
+                           has_prev=(page > 1),
+                           has_next=(page < total_pages),
+                           search=search,
+                           carrera_filter=carrera_filter,
+                           estatus_filter=estatus_filter,
+                           solo_aptos=solo_aptos,
+                           carreras=carreras,
+                           estatuses=estatuses,
+                           dependencias=dependencias,
+                           carpetas_compartidas=carpetas_compartidas,
+                           modulo_label=MODULO_LABEL,
+                           modulo_prefix=MODULO_PREFIX)
+
+@servicio_bp.route('/expedientes')
+@servicio_bp.route('/lista')
 def lista():
     page = request.args.get('page', 1, type=int)
     carrera_filter = request.args.get('carrera_filter')
@@ -47,7 +185,7 @@ def lista():
     pagination = query.paginate(page=page, per_page=20, error_out=False)
     carreras = active_query(Carrera).all()
 
-    return render_template('expedientes/lista.html',
+    return render_template('servicio/lista.html',
                            pagination=pagination,
                            carreras=carreras,
                            carrera_filter=carrera_filter,
@@ -324,7 +462,7 @@ def importar():
             else:
                 flash(f'ZIP procesado: {resultado_zip["asignados"]} PDFs asignados correctamente.', 'success')
 
-    return render_template('expedientes/importar.html',
+    return render_template('servicio/importar.html',
                            resultado=resultado,
                            resultado_zip=resultado_zip,
                            modulo_label=MODULO_LABEL,

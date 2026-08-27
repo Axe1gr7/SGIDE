@@ -1,46 +1,46 @@
 {% extends 'base.html' %}
-{% block title %}Alumnos - {{ modulo_label }}{% endblock %}
+{% block title %}Consulta de Alumnos - {{ modulo_label }}{% endblock %}
 
 {% block head %}
 <style>
 :root {
-  --prac-blur: blur(20px) saturate(180%);
-  --prac-glass: rgba(255,255,255,0.18);
-  --prac-border: rgba(255,255,255,0.35);
-  --prac-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
-  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
-  --prac-radius: 20px;
+  --srv-blur: blur(20px) saturate(180%);
+  --srv-glass: rgba(255,255,255,0.18);
+  --srv-border: rgba(255,255,255,0.35);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --srv-radius: 20px;
 }
 [data-theme="dark"] {
-  --prac-glass: rgba(15,23,42,0.55);
-  --prac-border: rgba(255,255,255,0.12);
-  --prac-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  --srv-glass: rgba(15,23,42,0.55);
+  --srv-border: rgba(255,255,255,0.12);
+  --srv-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --srv-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
-.prac-breadcrumb {
+.srv-breadcrumb {
   display: flex; align-items: center; gap: 8px;
   font-size: 0.9rem; color: var(--text-muted);
   margin-bottom: 12px;
 }
-.prac-breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
-.prac-breadcrumb a:hover { color: var(--accent); }
+.srv-breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+.srv-breadcrumb a:hover { color: var(--accent); }
 
-.prac-hero {
+.srv-hero {
   position: relative;
   padding: 28px 0 20px;
   margin-bottom: 28px;
   overflow: hidden;
 }
-.prac-hero::before {
+.srv-hero::before {
   content: '';
   position: absolute;
   inset: -40% -20%;
   background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(16,185,129,0.12) 0%, transparent 70%),
-              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(79,70,229,0.12) 0%, transparent 70%);
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(59,130,246,0.12) 0%, transparent 70%);
   pointer-events: none;
 }
-.prac-hero-content {
+.srv-hero-content {
   position: relative;
   display: flex;
   align-items: center;
@@ -48,12 +48,12 @@
   flex-wrap: wrap;
   gap: 16px;
 }
-.prac-hero-title {
+.srv-hero-title {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-.prac-hero-icon {
+.srv-hero-icon {
   width: 52px; height: 52px;
   background: linear-gradient(135deg, #10b981, #34d399);
   border-radius: 16px;
@@ -62,7 +62,7 @@
   box-shadow: 0 8px 24px rgba(16,185,129,0.3);
   flex-shrink: 0;
 }
-.prac-hero h1 {
+.srv-hero h1 {
   font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -72,15 +72,15 @@
   background-clip: text;
 }
 
-.prac-filter-card {
-  background: var(--prac-glass);
-  backdrop-filter: var(--prac-blur);
-  -webkit-backdrop-filter: var(--prac-blur);
-  border: 1px solid var(--prac-border);
-  border-radius: var(--prac-radius);
+.srv-filter-card {
+  background: var(--srv-glass);
+  backdrop-filter: var(--srv-blur);
+  -webkit-backdrop-filter: var(--srv-blur);
+  border: 1px solid var(--srv-border);
+  border-radius: var(--srv-radius);
   padding: 24px;
   margin-bottom: 28px;
-  box-shadow: var(--prac-shadow);
+  box-shadow: var(--srv-shadow);
 }
 
 .status-badge {
@@ -100,15 +100,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="prac-hero">
-  <div class="prac-hero-content">
-    <div class="prac-hero-title">
-      <div class="prac-hero-icon">
+<div class="srv-hero">
+  <div class="srv-hero-content">
+    <div class="srv-hero-title">
+      <div class="srv-hero-icon">
         <i class="fa-solid fa-user-graduate"></i>
       </div>
       <div>
-        <div class="prac-breadcrumb">
-          <a href="{{ url_for('practicas.menu') }}">← Volver al menú</a>
+        <div class="srv-breadcrumb">
+          <a href="{{ url_for('servicio.menu') }}">← Volver al menú</a>
         </div>
         <h1>Consulta de Alumnos — {{ modulo_label }}</h1>
       </div>
@@ -117,22 +117,13 @@
 </div>
 
 {# ── Filtros ────────────────────────────────────────────────────────────── #}
-<div class="prac-filter-card">
+<div class="srv-filter-card">
     <form method="GET" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 2; min-width: 200px;">
+        <div style="flex: 2; min-width: 220px;">
             <label class="form-label"><i class="fa-solid fa-magnifying-glass"></i> Buscar Alumno</label>
             <input type="text" name="search" class="glass-input" value="{{ search or '' }}" placeholder="Nombre o matrícula del alumno...">
         </div>
-        <div style="flex: 1; min-width: 170px;">
-            <label class="form-label"><i class="fa-solid fa-filter-circle-dollar"></i> Tipo de Consulta</label>
-            <select name="tipo_consulta" class="glass-select">
-                <option value="todos" {% if tipo_consulta == 'todos' or not tipo_consulta %}selected{% endif %}>🌐 Todos (Consulta General)</option>
-                <option value="aprobados" {% if tipo_consulta == 'aprobados' %}selected{% endif %}>✅ Alumnos Aprobados / Concluidos</option>
-                <option value="aptos" {% if tipo_consulta == 'aptos' %}selected{% endif %}>✨ Alumnos Aptos (Servicio Completo)</option>
-                <option value="en_tramite" {% if tipo_consulta == 'en_tramite' %}selected{% endif %}>⏳ Alumnos En Trámite</option>
-            </select>
-        </div>
-        <div style="flex: 1; min-width: 140px;">
+        <div style="flex: 1; min-width: 150px;">
             <label class="form-label"><i class="fa-solid fa-graduation-cap"></i> Carrera</label>
             <select name="carrera_filter" class="glass-select">
                 <option value="">Todas</option>
@@ -141,8 +132,8 @@
                 {% endfor %}
             </select>
         </div>
-        <div style="flex: 1; min-width: 130px;">
-            <label class="form-label"><i class="fa-solid fa-tag"></i> Estatus</label>
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label"><i class="fa-solid fa-tag"></i> Estatus Alumno</label>
             <select name="estatus_filter" class="glass-select">
                 <option value="">Todos</option>
                 {% for est in estatuses %}
@@ -150,9 +141,13 @@
                 {% endfor %}
             </select>
         </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 8px;">
+            <input type="checkbox" name="solo_aptos" value="1" id="soloAptos" {% if solo_aptos %}checked{% endif %} style="width: 16px; height: 16px; accent-color: var(--accent);">
+            <label for="soloAptos" style="font-size: 0.85rem; white-space: nowrap; cursor: pointer; font-weight: 500;">En proceso activo (excluir finalizados)</label>
+        </div>
         <div style="display: flex; gap: 8px;">
             <button type="submit" class="glass-btn"><i class="fa-solid fa-filter"></i> Filtrar</button>
-            <a href="{{ url_for('practicas.alumnos') }}" class="glass-btn glass-btn-outline"><i class="fa-solid fa-rotate-left"></i> Limpiar</a>
+            <a href="{{ url_for('servicio.alumnos') }}" class="glass-btn glass-btn-outline"><i class="fa-solid fa-rotate-left"></i> Limpiar</a>
         </div>
     </form>
 </div>
@@ -166,15 +161,16 @@
                 <th style="white-space: nowrap;">Matrícula</th>
                 <th>Carrera / Generación</th>
                 <th style="white-space: nowrap; text-align: center;">Servicio Social</th>
-                <th style="white-space: nowrap; text-align: center;">Estatus Prácticas</th>
+                <th>Dependencia Asignada</th>
                 <th style="white-space: nowrap; text-align: center;">Acción</th>
             </tr>
         </thead>
         <tbody>
             {% for item in alumnos_data %}
             {% set a = item.alumno %}
+            {% set exp = item.expediente %}
             <tr>
-                {# ── Alumno (nombre + badge estatus) ── #}
+                {# ── Alumno (nombre + badge) ── #}
                 <td>
                     <div style="font-weight: 700; color: var(--text-primary);">{{ a.nombre }}</div>
                     <div style="margin-top: 4px;">
@@ -193,50 +189,44 @@
 
                 {# ── Servicio Social ── #}
                 <td style="text-align: center; white-space: nowrap;">
-                    {% if item.ss_completo %}
+                    {% if item.is_finalizado %}
                     <span class="status-badge completed">
-                        <i class="fa-solid fa-circle-check"></i> Completado
+                        <i class="fa-solid fa-circle-check"></i> Finalizado
+                    </span>
+                    {% elif item.has_expediente %}
+                    <span class="status-badge pending">
+                        <i class="fa-solid fa-clock"></i> En Proceso
                     </span>
                     {% else %}
-                    <span class="status-badge pending">
-                        <i class="fa-solid fa-clock"></i> Pendiente
+                    <span class="status-badge eligible">
+                        <i class="fa-solid fa-handshake-angle"></i> Por Asignar
                     </span>
                     {% endif %}
                 </td>
 
-                {# ── Estatus Prácticas ── #}
-                <td style="text-align: center; white-space: nowrap;">
-                    {% if item.estatus_practicas == 'CONCLUIDO' %}
-                    <span class="status-badge completed"><i class="fa-solid fa-flag-checkered"></i> CONCLUIDO</span>
-                    {% elif item.estatus_practicas == 'EN TRÁMITE' %}
-                    <span class="status-badge pending"><i class="fa-solid fa-clock"></i> EN TRÁMITE</span>
-                    {% elif item.estatus_practicas == 'BAJA' %}
-                    <span class="status-badge not-eligible"><i class="fa-solid fa-circle-xmark"></i> BAJA</span>
-                    {% elif item.estatus_practicas == 'APTO' %}
-                    <span class="status-badge eligible"><i class="fa-solid fa-circle-check"></i> APTO</span>
+                {# ── Dependencia ── #}
+                <td>
+                    {% if item.dependencia %}
+                    <div style="font-weight: 600; font-size: 0.9rem;">
+                        <i class="fa-solid fa-building" style="color: var(--accent);"></i> {{ item.dependencia.nombre }}
+                    </div>
+                    {% if exp and exp.sector %}
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">Sector: {{ exp.sector }}</div>
+                    {% endif %}
                     {% else %}
-                    <span style="color: var(--text-muted); font-weight: 500;">—</span>
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Sin dependencia asignada</span>
                     {% endif %}
                 </td>
 
                 {# ── Acción ── #}
                 <td style="text-align: center; white-space: nowrap;">
-                    {% if item.tiene_practica %}
-                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
-                        <a href="{{ url_for('practicas.detalles', search=(item.practica.no_constancia or a.matricula), practica_id=item.practica_id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
-                            <i class="fa-solid fa-table-list"></i> Ver Detalles
-                        </a>
-                        <a href="{{ url_for('practicas.expediente', alumno_id=a.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
-                            <i class="fa-solid fa-folder-open"></i> Ver Expediente
-                        </a>
-                    </div>
-                    {% elif not item.apto_practicas %}
-                    <span style="color: var(--text-muted); font-size: 0.82rem;">
-                        <i class="fa-solid fa-info-circle"></i> Requiere completar SS
-                    </span>
+                    {% if item.has_expediente %}
+                    <a href="{{ url_for('servicio.detalle', id=exp.id) }}" class="glass-btn glass-btn-small glass-btn-outline" style="white-space: nowrap;">
+                        <i class="fa-solid fa-folder-open"></i> Ver Expediente
+                    </a>
                     {% else %}
-                    <a href="{{ url_for('practicas.asignar', alumno_id=a.id) }}" class="glass-btn glass-btn-small" style="white-space: nowrap;">
-                        <i class="fa-solid fa-plus"></i> Asignar Prácticas
+                    <a href="{{ url_for('servicio.lista', search=a.matricula) }}" class="glass-btn glass-btn-small" style="white-space: nowrap;">
+                        <i class="fa-solid fa-plus"></i> Iniciar Expediente
                     </a>
                     {% endif %}
                 </td>
@@ -253,6 +243,16 @@
     </table>
 </div>
 
-{% include 'components/_pagination.html' %}
+<!-- Paginación -->
+{% if total_pages > 1 %}
+<div class="pagination-container" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+    {% if has_prev %}
+    <a href="{{ url_for('servicio.alumnos', page=page-1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, solo_aptos=solo_aptos) }}" class="glass-btn glass-btn-outline glass-btn-small">« Anterior</a>
+    {% endif %}
+    <span class="glass-btn glass-btn-outline glass-btn-small disabled" style="cursor: default;">Página {{ page }} de {{ total_pages }}</span>
+    {% if has_next %}
+    <a href="{{ url_for('servicio.alumnos', page=page+1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, solo_aptos=solo_aptos) }}" class="glass-btn glass-btn-outline glass-btn-small">Siguiente »</a>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}
-

@@ -1,64 +1,144 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, send_file, abort
 from flask_login import login_required
 from werkzeug.utils import secure_filename
 from app.decorators import roles_required
+from app.models import Alumno, Expediente
+from app.services.logic_word import generar_documento_word, generar_documento_pdf
+from app.decorators import active_query
 
 plantillas_bp = Blueprint('plantillas', __name__)
 
-# Mapa de plantillas soportadas
-PLANTILLAS = {
-    'p': {'filename': 'plantilla_practicas.docx', 'label': 'Prácticas Profesionales'},
-    's': {'filename': 'plantilla_servicio.docx', 'label': 'Servicio Social (constancias)'},
-    'v': {'filename': 'plantilla_vinculacion.docx', 'label': 'Vinculación'},
+PLANTILLAS_BASE = {
+    'p': {'filename': 'plantilla_practicas.docx', 'label': 'Plantilla Base Prácticas Profesionales'},
+    's': {'filename': 'plantilla_servicio.docx', 'label': 'Plantilla Base Servicio Social'},
+    'v': {'filename': 'plantilla_vinculacion.docx', 'label': 'Plantilla Base Vinculación'},
 }
 
 
 @plantillas_bp.before_request
 @login_required
-@roles_required('Super Admin')
+@roles_required('Super Admin', 'Practicas', 'Servicio', 'Vinculacion')
 def before_request():
     pass
 
 
 @plantillas_bp.route('/')
 def lista():
-    plantillas = []
-    for key, info in PLANTILLAS.items():
-        path = os.path.join(current_app.config['TEMPLATES_WORD_FOLDER'], info['filename'])
-        plantillas.append({
-            'key': key,
-            'label': info['label'],
-            'filename': info['filename'],
-            'exists': os.path.exists(path),
-            'size': os.path.getsize(path) if os.path.exists(path) else 0,
-        })
-    return render_template('plantillas/lista.html', plantillas=plantillas)
-
-
-@plantillas_bp.route('/subir/<key>', methods=['POST'])
-def subir(key):
-    if key not in PLANTILLAS:
-        flash('Plantilla no válida.', 'danger')
-        return redirect(url_for('plantillas.lista'))
-
-    if 'plantilla' not in request.files:
-        flash('No se subió ningún archivo.', 'danger')
-        return redirect(request.url)
-
-    file = request.files['plantilla']
-    if file.filename == '':
-        flash('No se seleccionó ningún archivo.', 'danger')
-        return redirect(request.url)
-
-    if not file.filename.endswith('.docx'):
-        flash('El archivo debe ser un documento Word (.docx).', 'danger')
-        return redirect(request.url)
-
-    filename = PLANTILLAS[key]['filename']
+    modulo_filter = request.args.get('modulo', '')
     target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
     os.makedirs(target_dir, exist_ok=True)
+
+    archivos = [f for f in os.listdir(target_dir) if f.lower().endswith('.docx')]
+    archivos.sort()
+
+    plantillas_data = []
+    for f in archivos:
+        path = os.path.join(target_dir, f)
+        stat = os.stat(path)
+        
+        # Categorizar por módulo según prefijo o base
+        mod_type = 'general'
+        if 'practica' in f.lower() or f.startswith('p_'):
+            mod_type = 'p'
+        elif 'servicio' in f.lower() or f.startswith('s_'):
+            mod_type = 's'
+        elif 'vinculacion' in f.lower() or f.startswith('v_'):
+            mod_type = 'v'
+
+        if modulo_filter and modulo_filter != mod_type and mod_type != 'general':
+            continue
+
+        plantillas_data.append({
+            'filename': f,
+            'name': f.replace('.docx', '').replace('_', ' ').title(),
+            'mod_type': mod_type,
+            'size_kb': round(stat.st_size / 1024, 1),
+            'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%d/%m/%Y %H:%M'),
+            'is_base': any(info['filename'] == f for info in PLANTILLAS_BASE.values())
+        })
+
+    alumnos = active_query(Alumno).order_by(Alumno.nombre).all()
+
+    return render_template('plantillas/gestion.html',
+                           plantillas=plantillas_data,
+                           alumnos=alumnos,
+                           modulo_filter=modulo_filter)
+
+
+@plantillas_bp.route('/subir', methods=['POST'])
+def subir():
+    file = request.files.get('plantilla')
+    nombre_custom = request.form.get('nombre_custom', '').strip()
+    modulo_dest = request.form.get('modulo_dest', 'p')
+
+    if not file or file.filename == '':
+        flash('Debes seleccionar un archivo Word (.docx).', 'danger')
+        return redirect(url_for('plantillas.lista', modulo=modulo_dest))
+
+    if not file.filename.lower().endswith('.docx'):
+        flash('El archivo debe tener extensión .docx', 'danger')
+        return redirect(url_for('plantillas.lista', modulo=modulo_dest))
+
+    target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
+    os.makedirs(target_dir, exist_ok=True)
+
+    if nombre_custom:
+        safe_name = secure_filename(nombre_custom.replace(' ', '_'))
+        if not safe_name.lower().endswith('.docx'):
+            safe_name += '.docx'
+        filename = f"{modulo_dest}_{safe_name}"
+    else:
+        filename = f"{modulo_dest}_{secure_filename(file.filename)}"
+
     target_path = os.path.join(target_dir, filename)
     file.save(target_path)
-    flash(f'Plantilla de {PLANTILLAS[key]["label"]} actualizada.', 'success')
+    flash(f'Plantilla "{filename}" subida exitosamente.', 'success')
+    return redirect(url_for('plantillas.lista', modulo=modulo_dest))
+
+
+@plantillas_bp.route('/descargar/<filename>')
+def descargar(filename):
+    target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
+    safe_file = secure_filename(filename)
+    path = os.path.join(target_dir, safe_file)
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=safe_file)
+
+
+@plantillas_bp.route('/eliminar/<filename>', methods=['POST'])
+def eliminar(filename):
+    target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
+    safe_file = secure_filename(filename)
+    path = os.path.join(target_dir, safe_file)
+    if os.path.exists(path):
+        os.remove(path)
+        flash(f'Plantilla "{safe_file}" eliminada.', 'info')
+    else:
+        flash('Plantilla no encontrada.', 'warning')
     return redirect(url_for('plantillas.lista'))
+
+
+@plantillas_bp.route('/generar', methods=['POST'])
+def generar():
+    alumno_id = request.form.get('alumno_id', type=int)
+    template_name = request.form.get('template_name')
+    tipo_modulo = request.form.get('tipo_modulo', 'p')
+    formato = request.form.get('formato', 'docx')
+
+    if not alumno_id or not template_name:
+        flash('Debes seleccionar un alumno y una plantilla.', 'danger')
+        return redirect(url_for('plantillas.lista', modulo=tipo_modulo))
+
+    try:
+        if formato == 'pdf':
+            file_path, download_name = generar_documento_pdf(alumno_id, tipo_modulo, template_name=template_name)
+        else:
+            file_path, download_name = generar_documento_word(alumno_id, tipo_modulo, template_name=template_name)
+
+        return send_file(file_path, as_attachment=True, download_name=download_name)
+    except Exception as e:
+        flash(f'Error al generar documento: {str(e)}', 'danger')
+        return redirect(url_for('plantillas.lista', modulo=tipo_modulo))

@@ -56,23 +56,46 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
             ).first() or dependencia
     carrera_nombre = alumno.carrera.nombre if alumno.carrera else ''
 
+    MESES = {
+        1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',
+        7: 'julio', 8: 'agosto', 9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
+    }
+    now = datetime.now()
+    mes_nombre = MESES.get(now.month, '')
+    fecha_larga = f"{now.day} de {mes_nombre} de {now.year}"
+    fecha_larga_upper = f"{now.day} DE {mes_nombre.upper()} DE {now.year}"
+
     context = {
         'nombre': alumno.nombre or '',
+        'NOMBRE': (alumno.nombre or '').upper(),
         'matricula': alumno.matricula or '',
+        'MATRICULA': alumno.matricula or '',
         'carrera': carrera_nombre,
+        'CARRERA': carrera_nombre.upper(),
         'generacion': alumno.generacion_completa,
+        'GENERACION': alumno.generacion_completa,
         'estatus': alumno.estatus or '',
+        'ESTATUS': (alumno.estatus or '').upper(),
         'sector': expediente.sector or '',
+        'SECTOR': (expediente.sector or '').upper(),
         'dependencia': dependencia.nombre if dependencia else '',
+        'DEPENDENCIA': (dependencia.nombre if dependencia else '').upper(),
         'dependencia_nombre': dependencia.nombre if dependencia else '',
         'dependencia_direccion': getattr(dependencia, 'domicilio', '') if dependencia else '',
         'dependencia_contacto': getattr(dependencia, 'contacto', '') if dependencia else '',
         'dependencia_sector': getattr(dependencia, 'sector', '') if dependencia else '',
         'expediente_base': alumno.expediente_base or '',
         'clave_expediente': expediente.clave_expediente,
+        'CLAVE_EXPEDIENTE': expediente.clave_expediente,
         'tipo_modulo': modulo_nombres.get(tipo_modulo, tipo_modulo),
-        'fecha': datetime.now().strftime('%d/%m/%Y'),
-        'anio': datetime.now().year,
+        'fecha': now.strftime('%d/%m/%Y'),
+        'FECHA': fecha_larga,
+        'FECHA_UPPER': fecha_larga_upper,
+        'dia': now.day,
+        'mes': mes_nombre,
+        'MES': mes_nombre.upper(),
+        'anio': now.year,
+        'ANIO': now.year,
     }
 
     doc.render(context)

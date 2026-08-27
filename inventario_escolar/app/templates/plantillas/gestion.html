@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Plantillas y Constancias{% endblock %}
+
+{% block head %}
+<style>
+:root {
+  --plt-blur: blur(20px) saturate(180%);
+  --plt-glass: rgba(255,255,255,0.18);
+  --plt-border: rgba(255,255,255,0.35);
+  --plt-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --plt-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --plt-radius: 20px;
+}
+[data-theme="dark"] {
+  --plt-glass: rgba(15,23,42,0.55);
+  --plt-border: rgba(255,255,255,0.12);
+  --plt-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --plt-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.plt-hero {
+  position: relative;
+  padding: 32px 0 24px;
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.plt-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(99,102,241,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.plt-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.plt-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.plt-hero-icon {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(99,102,241,0.35);
+  flex-shrink: 0;
+}
+.plt-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #6366f1 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.plt-card-panel {
+  background: var(--plt-glass);
+  backdrop-filter: var(--plt-blur);
+  -webkit-backdrop-filter: var(--plt-blur);
+  border: 1px solid var(--plt-border);
+  border-radius: var(--plt-radius);
+  box-shadow: var(--plt-shadow);
+  padding: 28px;
+  margin-bottom: 28px;
+}
+
+.plt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+.plt-card {
+  position: relative;
+  background: var(--plt-glass);
+  backdrop-filter: var(--plt-blur);
+  -webkit-backdrop-filter: var(--plt-blur);
+  border: 1px solid var(--plt-border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: var(--plt-shadow);
+  transition: all 0.3s ease;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.plt-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--plt-hover-shadow);
+}
+
+.plt-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: 0.3s;
+}
+.plt-modal-overlay.active { opacity: 1; pointer-events: auto; }
+.plt-modal {
+  background: var(--plt-glass);
+  backdrop-filter: var(--plt-blur);
+  -webkit-backdrop-filter: var(--plt-blur);
+  border: 1px solid var(--plt-border);
+  border-radius: 24px;
+  box-shadow: var(--plt-hover-shadow);
+  width: 90%; max-width: 520px;
+  padding: 32px;
+  transform: translateY(20px) scale(0.96);
+  transition: transform 0.3s ease;
+}
+.plt-modal-overlay.active .plt-modal { transform: translateY(0) scale(1); }
+
+.tag-badge {
+  background: rgba(99,102,241,0.12);
+  color: #6366f1;
+  border: 1px solid rgba(99,102,241,0.3);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plt-hero">
+  <div class="plt-hero-content">
+    <div class="plt-hero-title">
+      <div class="plt-hero-icon">
+        <i class="fa-solid fa-file-word"></i>
+      </div>
+      <div>
+        <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 6px;">
+          {% if modulo_filter == 'p' %}
+          <a href="{{ url_for('practicas.menu') }}" style="color: var(--text-muted); text-decoration: none;">← Volver a Prácticas</a>
+          {% elif modulo_filter == 's' %}
+          <a href="{{ url_for('servicio.menu') }}" style="color: var(--text-muted); text-decoration: none;">← Volver a Servicio Social</a>
+          {% else %}
+          <a href="{{ url_for('dashboard.index') }}" style="color: var(--text-muted); text-decoration: none;">← Volver a Inicio</a>
+          {% endif %}
+        </div>
+        <h1>Gestión de Plantillas y Formatos Word</h1>
+        <p>Sube tus constancias en Word (.docx) y genera formatos automáticamente con los datos del alumno.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Barra de Filtros por Módulo -->
+<div style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
+    <a href="{{ url_for('plantillas.lista') }}" class="glass-btn {% if not modulo_filter %}glass-btn-outline{% endif %}" style="padding: 8px 16px; font-size: 0.9rem;">
+        <i class="fa-solid fa-layer-group"></i> Todas las Plantillas
+    </a>
+    <a href="{{ url_for('plantillas.lista', modulo='p') }}" class="glass-btn {% if modulo_filter != 'p' %}glass-btn-outline{% endif %}" style="padding: 8px 16px; font-size: 0.9rem;">
+        <i class="fa-solid fa-briefcase"></i> Prácticas Profesionales
+    </a>
+    <a href="{{ url_for('plantillas.lista', modulo='s') }}" class="glass-btn {% if modulo_filter != 's' %}glass-btn-outline{% endif %}" style="padding: 8px 16px; font-size: 0.9rem;">
+        <i class="fa-solid fa-handshake-angle"></i> Servicio Social
+    </a>
+    <a href="{{ url_for('plantillas.lista', modulo='v') }}" class="glass-btn {% if modulo_filter != 'v' %}glass-btn-outline{% endif %}" style="padding: 8px 16px; font-size: 0.9rem;">
+        <i class="fa-solid fa-link"></i> Vinculación
+    </a>
+</div>
+
+<!-- Sección 1: Subir Nueva Plantilla -->
+<div class="plt-card-panel">
+    <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
+        <i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent);"></i> Subir Nueva Plantilla (.docx)
+    </h3>
+    <form action="{{ url_for('plantillas.subir') }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 200px;">
+            <label class="form-label">Asignar a Módulo</label>
+            <select name="modulo_dest" class="glass-select">
+                <option value="p" {% if modulo_filter == 'p' %}selected{% endif %}>Prácticas Profesionales</option>
+                <option value="s" {% if modulo_filter == 's' %}selected{% endif %}>Servicio Social</option>
+                <option value="v" {% if modulo_filter == 'v' %}selected{% endif %}>Vinculación</option>
+            </select>
+        </div>
+        <div style="flex: 2; min-width: 240px;">
+            <label class="form-label">Nombre del Formato / Constancia</label>
+            <input type="text" name="nombre_custom" class="glass-input" placeholder="Ej: Constancia_Termino_Practicas" required>
+        </div>
+        <div style="flex: 2; min-width: 240px;">
+            <label class="form-label">Archivo Word (.docx)</label>
+            <input type="file" name="plantilla" accept=".docx" class="glass-input" required>
+        </div>
+        <button type="submit" class="glass-btn" style="padding: 10px 24px; font-size: 0.95rem;">
+            <i class="fa-solid fa-upload"></i> Subir Plantilla
+        </button>
+    </form>
+</div>
+
+<!-- Sección 2: Catálogo de Plantillas Instaladas -->
+<h3 style="margin-bottom: 18px; font-size: 1.3rem; display: flex; align-items: center; gap: 10px;">
+    <i class="fa-solid fa-folder-open" style="color: #10b981;"></i> Plantillas Instaladas ({{ plantillas|length }})
+</h3>
+
+<div class="plt-grid" style="margin-bottom: 36px;">
+    {% for p in plantillas %}
+    <div class="plt-card">
+        <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="width: 44px; height: 44px; background: rgba(99,102,241,0.12); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #6366f1;">
+                    <i class="fa-solid fa-file-word"></i>
+                </div>
+                <div>
+                    {% if p.mod_type == 'p' %}
+                    <span class="badge badge-info" style="font-size: 0.75rem;">Prácticas</span>
+                    {% elif p.mod_type == 's' %}
+                    <span class="badge badge-success" style="font-size: 0.75rem;">Servicio Social</span>
+                    {% elif p.mod_type == 'v' %}
+                    <span class="badge badge-warning" style="font-size: 0.75rem;">Vinculación</span>
+                    {% else %}
+                    <span class="badge badge-secondary" style="font-size: 0.75rem;">General</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">{{ p.name }}</h4>
+            <div style="font-size: 0.8rem; font-family: monospace; color: var(--text-muted); margin-bottom: 12px;">{{ p.filename }}</div>
+            
+            <div style="font-size: 0.82rem; color: var(--text-muted); display: flex; gap: 12px; margin-bottom: 16px;">
+                <span><i class="fa-solid fa-hard-drive"></i> {{ p.size_kb }} KB</span>
+                <span><i class="fa-solid fa-clock"></i> {{ p.mtime }}</span>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--plt-border); padding-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="glass-btn glass-btn-small" style="flex: 1; min-width: 130px;" onclick="openGenerateModal('{{ p.filename }}', '{{ p.name }}', '{{ p.mod_type }}')">
+                <i class="fa-solid fa-bolt"></i> Generar
+            </button>
+            <a href="{{ url_for('plantillas.descargar', filename=p.filename) }}" class="glass-btn glass-btn-small glass-btn-outline" title="Descargar plantilla base">
+                <i class="fa-solid fa-download"></i>
+            </a>
+            {% if not p.is_base %}
+            <form action="{{ url_for('plantillas.eliminar', filename=p.filename) }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Eliminar esta plantilla?');">
+                <button type="submit" class="glass-btn glass-btn-small glass-btn-outline" style="color: var(--danger); border-color: rgba(239,68,68,0.3);" title="Eliminar plantilla">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--plt-glass); border-radius: var(--plt-radius); border: 1px solid var(--plt-border);">
+        <i class="fa-solid fa-file-excel" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 12px; opacity: 0.5;"></i>
+        <div style="color: var(--text-muted); font-size: 1rem;">No hay plantillas instaladas para el módulo seleccionado.</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Sección 3: Guía de Marcadores / Sustitución Automática -->
+<div class="plt-card-panel">
+    <h3 style="margin-bottom: 14px; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-code" style="color: var(--accent);"></i> Guía de Marcadores para Documentos Word
+    </h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5;">
+        Escribe cualquiera de estos marcadores en tu plantilla Word <code>.docx</code>. Al presionar <strong>"Generar"</strong>, el sistema los reemplazará en automático con la información real del alumno:
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} nombre {{ "}}" }}</span> o <span class="tag-badge">{{ "{{" }} NOMBRE {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Nombre completo del alumno (mayúsculas o minúsculas)</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} matricula {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Número de matrícula institucional</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} fecha {{ "}}" }}</span> o <span class="tag-badge">{{ "{{" }} FECHA {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Fecha actual (ej. <i>27/08/2026</i> o <i>27 de agosto de 2026</i>)</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} carrera {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Nombre de la licenciatura o ingeniería</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} dependencia {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Empresa o dependencia asignada</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.02); padding: 12px; border-radius: 12px; border: 1px solid var(--plt-border);">
+            <div style="margin-bottom: 4px;"><span class="tag-badge">{{ "{{" }} clave_expediente {{ "}}" }}</span></div>
+            <div style="font-size: 0.83rem; color: var(--text-muted);">Clave única de expediente institucional</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Generador de Constancias -->
+<div id="modalGenerar" class="plt-modal-overlay">
+    <div class="plt-modal">
+        <h3 style="margin-bottom: 6px; font-size: 1.3rem; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-bolt" style="color: var(--accent);"></i> Generar Formato
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 20px;" id="modalTemplateName">Plantilla seleccionada</p>
+
+        <form action="{{ url_for('plantillas.generar') }}" method="POST">
+            <input type="hidden" name="template_name" id="modalTemplateFile">
+            <input type="hidden" name="tipo_modulo" id="modalTipoModulo" value="p">
+
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label class="form-label"><i class="fa-solid fa-user-graduate"></i> Seleccionar Alumno</label>
+                <select name="alumno_id" class="glass-select" required style="width: 100%;">
+                    <option value="">-- Buscar o Seleccionar Alumno --</option>
+                    {% for a in alumnos %}
+                    <option value="{{ a.id }}">{{ a.nombre }} ({{ a.matricula or 'Sin Matrícula' }}) — {{ a.carrera.nombre if a.carrera else '' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label"><i class="fa-solid fa-file-export"></i> Formato de Descarga</label>
+                <div style="display: flex; gap: 16px; margin-top: 6px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                        <input type="radio" name="formato" value="docx" checked style="accent-color: var(--accent);"> Documento Word (.docx)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
+                        <input type="radio" name="formato" value="pdf" style="accent-color: var(--accent);"> Documento PDF (.pdf)
+                    </label>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="glass-btn glass-btn-outline" onclick="closeGenerateModal()">Cancelar</button>
+                <button type="submit" class="glass-btn">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Sustituir y Descargar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openGenerateModal(filename, displayName, modType) {
+    document.getElementById('modalTemplateFile').value = filename;
+    document.getElementById('modalTemplateName').textContent = 'Constancia: ' + displayName;
+    document.getElementById('modalTipoModulo').value = modType !== 'general' ? modType : 'p';
+    document.getElementById('modalGenerar').classList.add('active');
+}
+
+function closeGenerateModal() {
+    document.getElementById('modalGenerar').classList.remove('active');
+}
+
+document.querySelectorAll('.plt-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeGenerateModal();
+    });
+});
+</script>
+{% endblock %}

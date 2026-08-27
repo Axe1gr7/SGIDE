@@ -1,13 +1,111 @@
 {% extends 'base.html' %}
 {% block title %}{{ form_title or 'Asignar Prácticas' }} - {{ alumno.nombre }}{% endblock %}
 
+{% block head %}
+<style>
+:root {
+  --prac-blur: blur(20px) saturate(180%);
+  --prac-glass: rgba(255,255,255,0.18);
+  --prac-border: rgba(255,255,255,0.35);
+  --prac-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --prac-radius: 20px;
+}
+[data-theme="dark"] {
+  --prac-glass: rgba(15,23,42,0.55);
+  --prac-border: rgba(255,255,255,0.12);
+  --prac-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.prac-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.prac-breadcrumb a { color: var(--text-muted); text-decoration: none; font-weight: 500; }
+.prac-breadcrumb a:hover { color: var(--accent); }
+
+.prac-hero {
+  position: relative;
+  padding: 28px 0 20px;
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.prac-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(79,70,229,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.prac-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.prac-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.prac-hero-icon {
+  width: 52px; height: 52px;
+  background: var(--accent-gradient);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(79,70,229,0.3);
+  flex-shrink: 0;
+}
+.prac-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.prac-hero p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.prac-section-card {
+  background: var(--prac-glass);
+  backdrop-filter: var(--prac-blur);
+  -webkit-backdrop-filter: var(--prac-blur);
+  border: 1px solid var(--prac-border);
+  border-radius: var(--prac-radius);
+  box-shadow: var(--prac-shadow);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="margin-bottom: 24px;">
-    <a href="{{ url_for('practicas.alumnos') }}" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: none;">← Volver a la lista de alumnos</a>
-    <h2 style="margin-top: 5px;">{{ form_title or 'Asignar Prácticas Profesionales' }}</h2>
-    <p style="color: var(--text-muted); font-size: 0.9rem;">
-        Alumno: <strong style="color: var(--text-primary);">{{ alumno.nombre }}</strong> — Matrícula: <strong style="color: var(--text-primary);">{{ alumno.matricula }}</strong>
-    </p>
+<div class="prac-hero">
+  <div class="prac-hero-content">
+    <div class="prac-hero-title">
+      <div class="prac-hero-icon">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </div>
+      <div>
+        <div class="prac-breadcrumb">
+          <a href="{{ url_for('practicas.alumnos') }}">← Volver a la lista de alumnos</a>
+        </div>
+        <h1>{{ form_title or 'Asignar Prácticas Profesionales' }}</h1>
+        <p>Alumno: <strong style="color: var(--text-primary);">{{ alumno.nombre }}</strong> — Matrícula: <strong style="color: var(--text-primary);">{{ alumno.matricula }}</strong></p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <form method="POST" action="{{ form_action or url_for('practicas.asignar', alumno_id=alumno.id) }}">
@@ -15,8 +113,8 @@
 {# ══════════════════════════════════════════════════════════════════════════ #}
 {# SECCIÓN 1: Datos del Alumno                                              #}
 {# ══════════════════════════════════════════════════════════════════════════ #}
-<div class="glass-card" style="margin-bottom: 24px;">
-    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+<div class="prac-section-card">
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--prac-border); padding-bottom: 10px; display: flex; align-items: center; gap: 10px;">
         <i class="fa-solid fa-user-graduate" style="color: var(--accent);"></i> Datos del Alumno
     </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">

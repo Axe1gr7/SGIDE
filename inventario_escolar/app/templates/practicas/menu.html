@@ -1,37 +1,295 @@
 {% extends 'base.html' %}
 {% block title %}{{ modulo_label }}{% endblock %}
 
+{% block head %}
+<style>
+:root {
+  --prac-blur: blur(20px) saturate(180%);
+  --prac-glass: rgba(255,255,255,0.18);
+  --prac-border: rgba(255,255,255,0.35);
+  --prac-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+  --prac-radius: 20px;
+}
+[data-theme="dark"] {
+  --prac-glass: rgba(15,23,42,0.55);
+  --prac-border: rgba(255,255,255,0.12);
+  --prac-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+.prac-hero {
+  position: relative;
+  padding: 40px 0 32px;
+  margin-bottom: 36px;
+  overflow: hidden;
+}
+.prac-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(79,70,229,0.15) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 40% at 75% 30%, rgba(16,185,129,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.prac-hero-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.prac-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.prac-hero-icon {
+  width: 56px; height: 56px;
+  background: var(--accent-gradient);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; color: #fff;
+  box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+  flex-shrink: 0;
+}
+.prac-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.prac-hero p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.prac-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+.prac-card {
+  position: relative;
+  background: var(--prac-glass);
+  backdrop-filter: var(--prac-blur);
+  -webkit-backdrop-filter: var(--prac-blur);
+  border: 1px solid var(--prac-border);
+  border-radius: var(--prac-radius);
+  box-shadow: var(--prac-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1),
+              box-shadow 0.35s cubic-bezier(.22,1,.36,1);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  height: 100%;
+}
+.prac-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--card-accent, var(--accent-gradient));
+  border-radius: var(--prac-radius) var(--prac-radius) 0 0;
+  opacity: 0.9;
+}
+.prac-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--prac-hover-shadow);
+}
+.prac-card-header {
+  padding: 28px 28px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex: 1;
+}
+.prac-card-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  background: var(--card-icon-bg, var(--accent-gradient));
+}
+.prac-card-meta { flex: 1; min-width: 0; }
+.prac-card-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.prac-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.prac-card-footer {
+  padding: 16px 28px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--prac-border);
+}
+.prac-card-action-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.prac-card-arrow {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(79,70,229,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; color: var(--accent);
+  transition: all 0.2s;
+}
+.prac-card:hover .prac-card-arrow {
+  background: var(--accent-gradient);
+  color: #fff;
+  transform: translateX(3px);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="margin-bottom: 24px;">
-    <h2 style="margin-bottom: 6px;">{{ modulo_label }}</h2>
-    <p style="color: var(--text-muted); font-size: 0.9rem;">Selecciona un submódulo para continuar.</p>
+<div class="prac-hero">
+  <div class="prac-hero-content">
+    <div class="prac-hero-title">
+      <div class="prac-hero-icon">
+        <i class="fa-solid fa-briefcase"></i>
+      </div>
+      <div>
+        <h1>{{ modulo_label }}</h1>
+        <p>Gestiona los procesos, consultas y expedientes de Prácticas Profesionales.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+<div class="prac-grid">
+  <!-- Card 1: Dashboard -->
+  <a href="{{ url_for('practicas.dashboard') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #4f46e5, #6366f1);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #4f46e5, #6366f1);">
+        <i class="fa-solid fa-chart-pie"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Dashboard</h3>
+        <p class="prac-card-desc">Estadísticas e indicadores gráficos del estatus y procesos de prácticas profesionales.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Ver Dashboard</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 
-    <a href="{{ url_for('practicas.dashboard') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
-        <div class="stats-icon">📊</div>
-        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Dashboard</div>
-        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Resumen general del módulo</p>
-    </a>
+  <!-- Card 2: Alumnos -->
+  <a href="{{ url_for('practicas.alumnos') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #10b981, #34d399);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #10b981, #34d399);">
+        <i class="fa-solid fa-users"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Alumnos</h3>
+        <p class="prac-card-desc">Consulta alumnos elegibles, verifica requisitos de servicio y asigna nuevas prácticas.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Consultar Alumnos</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 
-    <a href="{{ url_for('practicas.alumnos') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
-        <div class="stats-icon">👥</div>
-        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Alumnos</div>
-        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Consultar y asignar prácticas</p>
-    </a>
+  <!-- Card 3: Detalles de Prácticas -->
+  <a href="{{ url_for('practicas.detalles') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #3b82f6, #60a5fa);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #3b82f6, #60a5fa);">
+        <i class="fa-solid fa-clipboard-list"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Detalles de Prácticas</h3>
+        <p class="prac-card-desc">Gestión integral de registros, expedientes, fechas y control de documentos entregados.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Gestionar Registros</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 
-    <a href="{{ url_for('practicas.detalles') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
-        <div class="stats-icon">📋</div>
-        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Detalles de Prácticas</div>
-        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Gestión de expedientes</p>
-    </a>
+  <!-- Card 4: Gestión de Dependencias -->
+  <a href="{{ url_for('dependencias.lista') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #f59e0b, #fbbf24);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #f59e0b, #fbbf24);">
+        <i class="fa-solid fa-building"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Gestión de Dependencias</h3>
+        <p class="prac-card-desc">Catálogo de empresas, dependencias y unidades receptoras vinculadas.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Ver Dependencias</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 
-    <a href="{{ url_for('practicas.importar') }}" class="glass-card stats-card" style="text-decoration: none; color: var(--text-primary); cursor: pointer;">
-        <div class="stats-icon">📤</div>
-        <div class="stats-label" style="font-size: 1rem; font-weight: 600; letter-spacing: 0;">Importación Masiva</div>
-        <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 6px; text-align: center;">Poblar registros desde Excel</p>
-    </a>
+  <!-- Card 5: Importación Masiva -->
+  <a href="{{ url_for('practicas.importar') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #8b5cf6, #a78bfa);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #8b5cf6, #a78bfa);">
+        <i class="fa-solid fa-file-import"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Importación Masiva</h3>
+        <p class="prac-card-desc">Carga masiva de registros y dependencias de prácticas desde hojas de Excel.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Importar Excel</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 
+  <!-- Card 6: Plantillas y Formatos -->
+  <a href="{{ url_for('plantillas.lista', modulo='p') }}" class="prac-card" style="--card-accent: linear-gradient(to right, #ec4899, #f472b6);">
+    <div class="prac-card-header">
+      <div class="prac-card-icon" style="--card-icon-bg: linear-gradient(135deg, #ec4899, #f472b6);">
+        <i class="fa-solid fa-file-word"></i>
+      </div>
+      <div class="prac-card-meta">
+        <h3 class="prac-card-name">Plantillas y Formatos</h3>
+        <p class="prac-card-desc">Sube constancias en Word (.docx) y genera formatos automáticamente con datos del alumno.</p>
+      </div>
+    </div>
+    <div class="prac-card-footer">
+      <span class="prac-card-action-text">Gestionar Plantillas</span>
+      <div class="prac-card-arrow">
+        <i class="fa-solid fa-chevron-right"></i>
+      </div>
+    </div>
+  </a>
 </div>
 {% endblock %}
+
