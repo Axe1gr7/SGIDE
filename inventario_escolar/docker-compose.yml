@@ -25,6 +25,7 @@ services:
       - "80:5000"
     volumes:
       - uploads_data:/uploads
+      - templates_word_data:/app/app/templates_word
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +34,32 @@ services:
     environment:
       - UPLOAD_FOLDER=/uploads
 
+  migrate-practicas:
+    image: postgres:15
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    volumes:
+      - ./migration_practicas.sql:/migration.sql:ro
+    env_file:
+      - .env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    restart: "no"
+    command: >
+      sh -c "
+        echo 'Esperando a que flask seed-db cree las tablas del sistema...'
+        until psql -h db -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c 'SELECT 1 FROM alumnos LIMIT 1' > /dev/null 2>&1; do
+          sleep 3
+        done
+        echo 'Aplicando migracion de practicas (indices y comentarios)...'
+        psql -h db -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f /migration.sql
+        echo 'Migracion de practicas completada exitosamente.'
+      "
+
 volumes:
   pgdata:
   uploads_data:
+  templates_word_data:
