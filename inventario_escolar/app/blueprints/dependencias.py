@@ -9,8 +9,11 @@ from app.decorators import roles_required, active_query
 dependencias_bp = Blueprint('dependencias', __name__)
 
 TIPOS = ['Practicas', 'Servicio', 'Ambos']
-SECTORES = ['Municipal', 'Estatal', 'Salud']
 
+def obtener_sectores_dinamicos():
+    sectores_bd = [s[0] for s in db.session.query(Dependencia.sector).filter(Dependencia.sector != None, db.func.trim(Dependencia.sector) != '').distinct().order_by(Dependencia.sector).all()]
+    # Asegurar que siempre existan opciones base si se desea, aunque el usuario puede crear los suyos
+    return sectores_bd
 
 @dependencias_bp.before_request
 @login_required
@@ -34,7 +37,7 @@ def lista():
     return render_template('dependencias/lista.html',
                            dependencias=dependencias,
                            tipos=TIPOS,
-                           sectores=SECTORES,
+                           sectores=obtener_sectores_dinamicos(),
                            tipo_filter=tipo_filter,
                            search=search)
 
@@ -45,9 +48,9 @@ def crear():
         try:
             nombre = request.form.get('nombre').strip()
             tipo = request.form.get('tipo', 'Ambos')
-            sector = request.form.get('sector') or None
-            rubro = request.form.get('rubro') or None
-            area_interes = request.form.get('area_interes') or None
+            sector = request.form.get('sector')
+            if sector:
+                sector = sector.strip()
             domicilio = request.form.get('domicilio') or None
             contacto = request.form.get('contacto') or None
             telefono = request.form.get('telefono') or None
@@ -57,7 +60,6 @@ def crear():
                 flash('El nombre de la dependencia es obligatorio.', 'danger')
             else:
                 dep = Dependencia(nombre=nombre, tipo=tipo, sector=sector,
-                                  rubro=rubro, area_interes=area_interes,
                                   domicilio=domicilio, contacto=contacto,
                                   telefono=telefono, correo=correo)
                 db.session.add(dep)
@@ -71,7 +73,7 @@ def crear():
     return render_template('dependencias/form.html',
                            dependencia=None,
                            tipos=TIPOS,
-                           sectores=SECTORES)
+                           sectores=obtener_sectores_dinamicos())
 
 
 @dependencias_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
@@ -85,9 +87,8 @@ def editar(id):
             else:
                 dependencia.nombre = nombre
                 dependencia.tipo = request.form.get('tipo', 'Ambos')
-                dependencia.sector = request.form.get('sector') or None
-                dependencia.rubro = request.form.get('rubro') or None
-                dependencia.area_interes = request.form.get('area_interes') or None
+                sector = request.form.get('sector')
+                dependencia.sector = sector.strip() if sector else None
                 dependencia.domicilio = request.form.get('domicilio') or None
                 dependencia.contacto = request.form.get('contacto') or None
                 dependencia.telefono = request.form.get('telefono') or None
@@ -102,7 +103,7 @@ def editar(id):
     return render_template('dependencias/form.html',
                            dependencia=dependencia,
                            tipos=TIPOS,
-                           sectores=SECTORES)
+                           sectores=obtener_sectores_dinamicos())
 
 
 @dependencias_bp.route('/<int:id>/eliminar', methods=['POST'])
@@ -177,13 +178,10 @@ def procesar_excel_dependencias(filepath):
         'nombre': 'nombre',
         'empresa': 'nombre',
         'sector': 'sector',
-        'rubro': 'rubro',
         'ubicacion': 'domicilio',
         'domicilio': 'domicilio',
         'contacto': 'contacto',
         'telefono': 'telefono',
-        'areainteres': 'area_interes',
-        'areadeinteres': 'area_interes',
         'correo': 'correo',
         'email': 'correo',
     }
@@ -243,11 +241,8 @@ def procesar_excel_dependencias(filepath):
             contacto = valor_fila(row, 'contacto')
             telefono = valor_fila(row, 'telefono')
             correo = valor_fila(row, 'correo')
-            rubro = valor_fila(row, 'rubro')
-            area_interes = valor_fila(row, 'area_interes')
 
             dep = Dependencia(nombre=nombre, tipo='Practicas', sector=sector,
-                              rubro=rubro, area_interes=area_interes,
                               domicilio=domicilio, contacto=contacto,
                               telefono=telefono, correo=correo)
             db.session.add(dep)

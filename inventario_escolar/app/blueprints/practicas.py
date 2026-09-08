@@ -10,20 +10,195 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Alumno, Carrera, Expediente, Documento, Practica, Dependencia
 from app.decorators import roles_required, active_query
-from app.services.logic_word import generar_documento_pdf, generar_documento_word
+from app.blueprints.dependencias import obtener_sectores_dinamicos
+from app.services.logic_word import (
+    FORMATO_ACREDITACION_PP_FILENAME,
+    generar_documento_word,
+)
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_zip import procesar_zip_pdfs
+from app.services.logic_expediente import (
+    cerrar_servicio_social_por_practicas,
+    resolver_carrera_practicas,
+    sincronizar_carreras_practicas,
+    sincronizar_servicio_social_con_practicas,
+)
 from app.models import CarpetaCompartida, ArchivoCompartido
 
 
 practicas_bp = Blueprint('practicas', __name__)
 MODULO_LABEL = 'Prácticas Profesionales'
 MODULO_PREFIX = 'practicas'
+ESTATUS_PLANTEL = ('Activo', 'Inactivo', 'Egresado')
 DOCUMENTOS_PRACTICAS_AUTO = [
-    'Carta de presentación de prácticas profesionales',
-    'Carta de aceptación de prácticas profesionales',
-    'Constancia de terminación de prácticas profesionales',
+    os.path.splitext(FORMATO_ACREDITACION_PP_FILENAME)[0],
 ]
+
+
+# ── Validación del formulario de Prácticas ─────────────────────────────────
+
+# Campos Integer del modelo con su etiqueta legible
+_INTEGER_FIELDS_LABELS = {
+    'no_registro':      'No. Registro',
+    'consecutivo':      'Consecutivo',
+    'f_inicio_dia':     'Día (F. Inicio)',
+    'f_inicio_anio':    'Año (F. Inicio)',
+    'f_ca_dia':         'Día (C. Aceptación)',
+    'f_ca_anio':        'Año (C. Aceptación)',
+    'inf_final_valor':  'Inf. Final (valor)',
+    'f_ct_dia':         'Día (Constancia T.)',
+    'f_ct_anio':        'Año (Constancia T.)',
+}
+
+# Campos Numeric/Decimal del modelo con su etiqueta
+_NUMERIC_FIELDS_LABELS = {
+    'becados':          ('Becados',        10, 2),
+    'r_e_final_valor':  ('R-E-Final (valor)', 5, 2),
+    'c_t_valor':        ('C.T (valor)',     5, 2),
+}
+
+# Campos Date del modelo con su etiqueta
+_DATE_FIELDS_LABELS = {
+    's_prac_fecha_excel': 'S. Prác. (fecha)',
+    'f_inicio':           'F. Inicio',
+    'c_pres_fecha_excel': 'C. Pres. (fecha)',
+    'f_cp':               'F.C.P',
+    'c_acep_fecha_excel': 'C. Acep. (fecha)',
+    'f_ca':               'F.C.A',
+    'p_trabj_fecha_excel':'P. Trabj. (fecha)',
+    'f_ptr':              'F. P.Tr.',
+    'i_inter_fecha_excel':'I. Inter. (fecha)',
+    'f_ii':               'F.I.I.',
+    'f_l_ii':             'F.L. I.I.',
+    'f_i_final':          'F.I.Final',
+    'f_re_final':         'F.R-E Final',
+    'f_ct':               'F.C.T',
+}
+
+# Campos de año que deben validarse en un rango razonable
+_YEAR_FIELDS_LABELS = {
+    'f_inicio_anio': 'Año (F. Inicio)',
+    'f_ca_anio':     'Año (C. Aceptación)',
+    'f_ct_anio':     'Año (Constancia T.)',
+}
+
+# Límites de longitud de String basados en el modelo
+_STRING_MAX_LENGTHS = {
+    'no_constancia':        (50,  'No. Constancia'),
+    'nombre':               (250, 'Nombre'),
+    'nombre_minusculas':    (250, 'Nombre Minúsculas'),
+    'matricula':            (50,  'Matrícula'),
+    'telefono':             (20,  'Teléfono'),
+    'correo_estudiante':    (150, 'Correo Estudiante'),
+    'grado_carrera':        (30,  'Grado-Carrera'),
+    'turno':                (15,  'Turno'),
+    'carrera':              (50,  'Carrera'),
+    'observaciones':        (20,  'Observaciones'),
+    'proceso':              (30,  'Proceso'),
+    'empresa':              (250, 'Empresa'),
+    'sector':               (60,  'Sector'),
+    'nombre_proyecto':      (300, 'Nombre del Proyecto'),
+    'tel_empresa':          (20,  'Tel. Empresa'),
+    'direccion_empresa':    (400, 'Dirección Empresa'),
+    'correo_empresa':       (150, 'Correo Empresa'),
+    'generacion':           (10,  'Generación'),
+    'sexo':                 (10,  'H/M'),
+    'monto':                (20,  'Monto'),
+    's_prac':               (15,  'S. Prác'),
+    'f_inicio_mes':         (15,  'Mes (F. Inicio)'),
+    'c_pres':               (15,  'C. Pres.'),
+    'c_acep':               (15,  'C. Acep'),
+    'f_ca_mes':             (15,  'Mes (C. Aceptación)'),
+    'p_trabj':              (15,  'P. Trabj'),
+    'i_inter':              (15,  'I. Inter'),
+    'estado':               (15,  'Estado'),
+    'inf_final':            (15,  'Inf. Final'),
+    'estado_inf_final':     (15,  'Estado (Inf. Final)'),
+    'r_e_final':            (15,  'R-E-Final'),
+    'cons_t':               (15,  'Cons.T'),
+    'f_ct_mes':             (15,  'Mes (Constancia T.)'),
+    'promedio':             (10,  'Promedio'),
+    'tiempo_proceso':       (50,  'Tiempo del Proceso'),
+    'carpeta':              (100, 'Carpeta'),
+    'paso_por_constancia':  (100, 'Paso por Constancia'),
+    'pc':                   (50,  'P.C.'),
+}
+
+
+def _validar_practica_form(form_data):
+    """
+    Valida los datos del formulario de prácticas antes de guardar.
+    Retorna una lista de mensajes de error. Lista vacía = sin errores.
+    Los campos vacíos se ignoran (todos los campos son opcionales).
+    """
+    errores = []
+    anio_actual = date.today().year
+    anio_min, anio_max = 1920, anio_actual + 5
+
+    # ── Validar campos enteros ─────────────────────────────────────────
+    for field, label in _INTEGER_FIELDS_LABELS.items():
+        val = form_data.get(field, '').strip()
+        if not val:
+            continue
+        try:
+            int(float(val))
+        except (ValueError, TypeError):
+            errores.append(f'"{label}" debe ser un número entero válido.')
+
+    # ── Validar campos de año (rango) ──────────────────────────────────
+    for field, label in _YEAR_FIELDS_LABELS.items():
+        val = form_data.get(field, '').strip()
+        if not val:
+            continue
+        try:
+            year = int(float(val))
+            if year < anio_min or year > anio_max:
+                errores.append(
+                    f'"{label}" debe estar entre {anio_min} y {anio_max}.'
+                )
+        except (ValueError, TypeError):
+            pass  # Ya capturado por la validación de enteros
+
+    # ── Validar campos numéricos (Decimal) ─────────────────────────────
+    for field, (label, precision, scale) in _NUMERIC_FIELDS_LABELS.items():
+        val = form_data.get(field, '').strip()
+        if not val:
+            continue
+        try:
+            num = float(val.replace(',', '.'))
+            max_digits = precision - scale
+            if abs(num) >= 10 ** max_digits:
+                errores.append(
+                    f'"{label}" excede el máximo permitido '
+                    f'({max_digits} dígitos enteros, {scale} decimales).'
+                )
+        except (ValueError, TypeError):
+            errores.append(f'"{label}" debe ser un número válido.')
+
+    # ── Validar campos de fecha ────────────────────────────────────────
+    for field, label in _DATE_FIELDS_LABELS.items():
+        val = form_data.get(field, '').strip()
+        if not val:
+            continue
+        try:
+            datetime.strptime(val, '%Y-%m-%d')
+        except (ValueError, TypeError):
+            errores.append(
+                f'"{label}" no tiene un formato de fecha válido (AAAA-MM-DD).'
+            )
+
+    # ── Validar longitudes de cadena ───────────────────────────────────
+    for field, (max_len, label) in _STRING_MAX_LENGTHS.items():
+        val = form_data.get(field, '').strip()
+        if not val:
+            continue
+        if len(val) > max_len:
+            errores.append(
+                f'"{label}" excede el máximo de {max_len} caracteres '
+                f'({len(val)} ingresados).'
+            )
+
+    return errores
 
 
 @practicas_bp.before_request
@@ -60,20 +235,21 @@ def dashboard():
     # CONCLUIDO o constancia de terminación CONS.T = SI.
     practicas_registradas = active_query(Practica).all()
     total_practicas = len(practicas_registradas)
-    estatus_counts = {
-        estatus: sum(practica.observaciones == estatus for practica in practicas_registradas)
-        for estatus in Practica.OBSERVACIONES_OPTS
-    }
+    estatus_counts = {estatus: 0 for estatus in Practica.OBSERVACIONES_OPTS}
+    estatus_counts['SIN ESTATUS'] = 0
+    for practica in practicas_registradas:
+        estatus = (practica.observaciones or '').strip().upper()
+        if estatus in estatus_counts and estatus != 'SIN ESTATUS':
+            estatus_counts[estatus] += 1
+        else:
+            estatus_counts['SIN ESTATUS'] += 1
     aptos = sum(
         1 for alumno in alumnos_candidatos
         if _check_ss_completo(alumno) and not _get_practicas_for_alumno(alumno)
     ) + estatus_counts['APTO']
     concluidas = estatus_counts['CONCLUIDO']
     en_tramite = estatus_counts['EN TRÁMITE']
-    sin_estatus = sum(
-        practica.observaciones not in Practica.OBSERVACIONES_OPTS
-        for practica in practicas_registradas
-    )
+    sin_estatus = estatus_counts['SIN ESTATUS']
     
     # 3. Distribución por Proceso
     procesos_counts = db.session.query(
@@ -85,11 +261,10 @@ def dashboard():
     ).all()
     
     proceso_data = {p: 0 for p in Practica.PROCESOS}
+    proceso_data['SIN PROCESO'] = 0
     for proc, count in procesos_counts:
-        if proc in proceso_data:
-            proceso_data[proc] = count
-        elif proc:  # por si hay algún proceso personalizado
-            proceso_data[proc] = count
+        proceso = (proc or '').strip().upper() or 'SIN PROCESO'
+        proceso_data[proceso] = proceso_data.get(proceso, 0) + count
             
     return render_template('practicas/dashboard.html',
                            tienen_derecho=tienen_derecho,
@@ -97,6 +272,9 @@ def dashboard():
                            total_practicas=total_practicas,
                            estatus_counts=estatus_counts,
                            aptos=aptos,
+                           concluidas=concluidas,
+                           en_tramite=en_tramite,
+                           sin_estatus=sin_estatus,
                            proceso_data=proceso_data,
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
@@ -173,14 +351,14 @@ COLUMNAS_MAPA = [
     ('pc',                   'P.C.'),
 ]
 
-# Filtros selector: (query_param_name, campo_db, opciones)
+# Filtros selector: (query_param_name, campo_db, opciones, label)
 FILTROS_SELECTOR = [
     ('f_grado_carrera',   'grado_carrera',    Practica.GRADOS_CARRERA,    'Grado-Carrera'),
     ('f_turno',           'turno',            Practica.TURNOS,            'Turno'),
     ('f_carrera',         'carrera',          Practica.CARRERAS,          'Carrera'),
     ('f_observaciones',   'observaciones',    Practica.OBSERVACIONES_OPTS,'Observaciones'),
     ('f_proceso',         'proceso',          Practica.PROCESOS,          'Proceso'),
-    ('f_sector',          'sector',           Practica.SECTORES,          'Sector'),
+    ('f_sector',          'sector',           None,                       'Sector'),
     ('f_sexo',            'sexo',             Practica.SEXOS,             'H/M'),
     ('f_s_prac',          's_prac',           Practica.OPTS_SNC,          'S. PRÁC'),
     ('f_c_pres',          'c_pres',           Practica.OPTS_SNC,          'C.PRES.'),
@@ -193,6 +371,38 @@ FILTROS_SELECTOR = [
     ('f_r_e_final',       'r_e_final',        Practica.OPTS_SNC,          'R-E-FINAL'),
     ('f_cons_t',          'cons_t',           Practica.OPTS_SNC,          'CONS.T'),
 ]
+
+# Opciones del filtro CARPETA (Bloque)
+CARPETA_OPTS = ['BLOQUE 1', 'BLOQUE 2', 'BLOQUE 3']
+
+# Filtros de rango de fecha: (param_prefix, campo_db, label)
+# Cada uno genera dos parámetros: {param_prefix}_desde y {param_prefix}_hasta
+FILTROS_FECHA = [
+    ('fd_s_prac_fecha',    's_prac_fecha_excel',   'S. PRÁC. (Fecha)'),
+    ('fd_f_inicio',        'f_inicio',             'F. INICIO'),
+    ('fd_c_pres_fecha',    'c_pres_fecha_excel',   'C.PRES. (Fecha)'),
+    ('fd_f_cp',            'f_cp',                 'F.C.P'),
+    ('fd_c_acep_fecha',    'c_acep_fecha_excel',   'C. ACEP. (Fecha)'),
+    ('fd_f_ca',            'f_ca',                 'F.C.A'),
+    ('fd_p_trabj_fecha',   'p_trabj_fecha_excel',  'P. TRABJ. (Fecha)'),
+    ('fd_f_ptr',           'f_ptr',                'F. P.TR'),
+    ('fd_i_inter_fecha',   'i_inter_fecha_excel',  'I. INTER. (Fecha)'),
+    ('fd_f_ii',            'f_ii',                 'F.I.I.'),
+    ('fd_f_l_ii',          'f_l_ii',               'F.L. I.I.'),
+    ('fd_f_i_final',       'f_i_final',            'F.I.FINAL'),
+    ('fd_f_re_final',      'f_re_final',           'F.R-E FINAL'),
+    ('fd_f_ct',            'f_ct',                 'F.C.T (Paso por constancia)'),
+]
+
+
+def _parse_date_param(value):
+    """Convierte un string de parámetro a objeto date, o None si es inválido."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value.strip(), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
 
 
 def _build_detalles_query():
@@ -210,7 +420,12 @@ def _build_detalles_query():
             (Practica.nombre.ilike(f'%{search}%')) |
             (Practica.matricula.ilike(f'%{search}%')) |
             (Practica.empresa.ilike(f'%{search}%')) |
-            (Practica.no_constancia.ilike(f'%{search}%'))
+            (Practica.no_constancia.ilike(f'%{search}%')) |
+            (Practica.nombre_proyecto.ilike(f'%{search}%')) |
+            (Practica.promedio.ilike(f'%{search}%')) |
+            (Practica.resumen_observaciones.ilike(f'%{search}%')) |
+            (Practica.paso_por_constancia.ilike(f'%{search}%')) |
+            (Practica.pc.ilike(f'%{search}%'))
         )
 
     # Filtros de tipo selector
@@ -223,6 +438,28 @@ def _build_detalles_query():
     gen = request.args.get('f_generacion', '').strip()
     if gen:
         query = query.filter(Practica.generacion.ilike(f'%{gen}%'))
+
+    # Filtro por CARPETA (Bloque)
+    carpeta_val = request.args.get('f_carpeta', '').strip()
+    if carpeta_val:
+        if carpeta_val == 'BLOQUE 3':
+            query = query.filter(
+                (Practica.carpeta == None) | (Practica.carpeta == '')
+            )
+        else:
+            query = query.filter(Practica.carpeta == carpeta_val)
+
+    # Filtros de rango de fecha
+    for param_prefix, db_field, _label in FILTROS_FECHA:
+        desde = _parse_date_param(request.args.get(f'{param_prefix}_desde'))
+        hasta = _parse_date_param(request.args.get(f'{param_prefix}_hasta'))
+        col = getattr(Practica, db_field)
+        if desde and hasta:
+            query = query.filter(col >= desde, col <= hasta)
+        elif desde:
+            query = query.filter(col >= desde)
+        elif hasta:
+            query = query.filter(col <= hasta)
 
     return query.order_by(Practica.no_registro)
 
@@ -253,12 +490,28 @@ def detalles():
     for param_name, _db, _opts, _label in FILTROS_SELECTOR:
         if request.args.get(param_name):
             filtros_activos += 1
+    if request.args.get('f_carpeta', '').strip():
+        filtros_activos += 1
+    for param_prefix, _db, _label in FILTROS_FECHA:
+        if request.args.get(f'{param_prefix}_desde') or request.args.get(f'{param_prefix}_hasta'):
+            filtros_activos += 1
+
+    # Construir dinámicamente los filtros selectores para inyectar los sectores actuales
+    filtros_selector_dinamicos = []
+    sectores_dinamicos = obtener_sectores_dinamicos()
+    for param_name, db_field, options, label in FILTROS_SELECTOR:
+        if param_name == 'f_sector':
+            filtros_selector_dinamicos.append((param_name, db_field, sectores_dinamicos, label))
+        else:
+            filtros_selector_dinamicos.append((param_name, db_field, options, label))
 
     return render_template('practicas/detalles.html',
                            practicas=practicas,
                            columnas_mapa=COLUMNAS_MAPA,
                            columnas_activas=columnas_activas,
-                           filtros_selector=FILTROS_SELECTOR,
+                           filtros_selector=filtros_selector_dinamicos,
+                           filtros_fecha=FILTROS_FECHA,
+                           carpeta_opts=CARPETA_OPTS,
                            filtros_activos=filtros_activos,
                            selected_practica_id=selected_practica_id if len(practicas) == 1 else None,
                            modulo_label=MODULO_LABEL,
@@ -354,11 +607,8 @@ def exportar_detalles():
 
 def _check_ss_completo(alumno):
     """
-    Verifica si el alumno completó con éxito su Servicio Social.
-    Un alumno marcado explícitamente como Servicio Finalizado también cumple
-    la regla, aunque la constancia no haya sido registrada en este módulo.
     """
-    if alumno.estatus == 'Servicio Finalizado':
+    if alumno.servicio_completado:
         return True
 
     expediente_ss = Expediente.query.filter_by(
@@ -380,6 +630,13 @@ def _check_ss_completo(alumno):
         Documento.estado.in_(['Entregado', 'Recibido'])
     ).count()
     return completados == total_docs
+
+
+def _estatus_plantel_visible(alumno):
+    """Evita mostrar valores documentales heredados como estatus del plantel."""
+    if alumno.estatus in ESTATUS_PLANTEL:
+        return alumno.estatus
+    return 'Activo'
 
 
 def _get_practica_for_alumno(alumno):
@@ -426,6 +683,8 @@ def _practicas_finalizadas(practicas):
 
 @practicas_bp.route('/alumnos')
 def alumnos():
+    sincronizar_servicio_social_con_practicas()
+    db.session.commit()
     page = request.args.get('page', 1, type=int)
     carrera_filter = request.args.get('carrera_filter')
     search = request.args.get('search', '').strip()
@@ -442,8 +701,13 @@ def alumnos():
             (Alumno.nombre.ilike(f'%{search}%')) |
             (Alumno.matricula.ilike(f'%{search}%'))
         )
-    if estatus_filter:
-        query = query.filter(Alumno.estatus == estatus_filter)
+    if estatus_filter in ESTATUS_PLANTEL:
+        if estatus_filter == 'Activo':
+            query = query.filter(Alumno.estatus == 'Activo')
+        else:
+            query = query.filter(Alumno.estatus == estatus_filter)
+    else:
+        estatus_filter = None
 
     all_candidatos = query.order_by(Alumno.nombre).all()
     alumnos_data = []
@@ -473,6 +737,7 @@ def alumnos():
 
         alumnos_data.append({
             'alumno': alumno,
+            'estatus_plantel': _estatus_plantel_visible(alumno),
             'ss_completo': ss_completo,
             'apto_practicas': ss_completo,
             'estatus_practicas': estatus_practicas,
@@ -503,10 +768,26 @@ def alumnos():
             self.next_num = page + 1
             self.items = items
 
+        def iter_pages(self, left_edge=2, left_current=2,
+                       right_current=5, right_edge=2):
+            """Expone la misma interfaz de paginación que Flask-SQLAlchemy."""
+            last_num = 0
+            for num in range(1, self.pages + 1):
+                if (
+                    num <= left_edge
+                    or (num > self.page - left_current - 1
+                        and num < self.page + right_current)
+                    or num > self.pages - right_edge
+                ):
+                    if last_num + 1 != num:
+                        yield None
+                    yield num
+                    last_num = num
+
     pagination = FakePagination(page, per_page, total, paginated_alumnos)
 
     carreras = active_query(Carrera).all()
-    estatuses = ['Activo', 'Inactivo', 'Egresado', 'Servicio Finalizado']
+    estatuses = ESTATUS_PLANTEL
 
     return render_template('practicas/alumnos.html',
                            alumnos_data=paginated_alumnos,
@@ -538,21 +819,21 @@ def _dependencia_de_practica(practica):
     ).first()
 
 
-def _asignar_dependencia_y_documentos_practicas(alumno, nombre_dependencia):
-    """Asocia la dependencia al expediente p y crea sus documentos base."""
-    if not nombre_dependencia:
-        return None
-
-    dependencia = active_query(Dependencia).filter(
-        db.func.lower(Dependencia.nombre) == nombre_dependencia.strip().lower()
-    ).first()
+def _asignar_dependencia_y_documentos_practicas(alumno, nombre_dependencia, dependencia=None):
+    """Asocia la dependencia, si existe, e inicializa el formato único de PP."""
     expediente = active_query(Expediente).filter_by(
         alumno_id=alumno.id, tipo_modulo='p'
     ).first()
-    if not dependencia or not expediente:
-        return dependencia
+    if not expediente:
+        return None
 
-    expediente.dependencia_id = dependencia.id
+    if dependencia is None and nombre_dependencia:
+        dependencia = active_query(Dependencia).filter(
+            db.func.lower(Dependencia.nombre) == nombre_dependencia.strip().lower()
+        ).first()
+
+    if dependencia:
+        expediente.dependencia_id = dependencia.id
     for nombre_formato in DOCUMENTOS_PRACTICAS_AUTO:
         existe = active_query(Documento).filter_by(
             expediente_id=expediente.id,
@@ -567,6 +848,80 @@ def _asignar_dependencia_y_documentos_practicas(alumno, nombre_dependencia):
     return dependencia
 
 
+def _normalizar_dato_dependencia(valor):
+    """Normaliza un dato para comparar dependencias sin diferencias de formato."""
+    texto = '' if valor is None else str(valor).strip()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    return ' '.join(texto.casefold().split())
+
+
+def _buscar_dependencia_exacta(nombre, sector, telefono, domicilio, correo):
+    """Busca una dependencia activa comparando todos sus datos editables."""
+    if not _normalizar_dato_dependencia(nombre):
+        return None
+
+    candidatas = active_query(Dependencia).filter(
+        Dependencia.tipo.in_(['Practicas', 'Ambos'])
+    ).all()
+    valores = (nombre, sector, telefono, domicilio, correo)
+    for dependencia in candidatas:
+        actuales = (
+            dependencia.nombre,
+            dependencia.sector,
+            dependencia.telefono,
+            dependencia.domicilio,
+            dependencia.correo,
+        )
+        if all(
+            _normalizar_dato_dependencia(actual) == _normalizar_dato_dependencia(nuevo)
+            for actual, nuevo in zip(actuales, valores)
+        ):
+            return dependencia
+    return None
+
+
+def _resolver_dependencia_practicas(formulario):
+    """Obtiene la dependencia seleccionada o crea una nueva sin duplicarla."""
+    dependencia_id = formulario.get('dependencia_id', type=int)
+    crear = formulario.get('crear_dependencia') == '1'
+
+    if dependencia_id and not crear:
+        dependencia = active_query(Dependencia).filter(
+            Dependencia.id == dependencia_id,
+            Dependencia.tipo.in_(['Practicas', 'Ambos']),
+        ).first()
+        if not dependencia:
+            raise ValueError('La dependencia seleccionada no está disponible.')
+        return dependencia
+
+    nombre = (formulario.get('empresa_nueva') or formulario.get('empresa') or '').strip()
+    if not nombre or nombre == 'Otra':
+        raise ValueError('Selecciona una dependencia o activa el botón + para registrarla.')
+
+    sector = (formulario.get('sector') or '').strip() or None
+    telefono = (formulario.get('tel_empresa') or '').strip() or None
+    domicilio = (formulario.get('direccion_empresa') or '').strip() or None
+    correo = (formulario.get('correo_empresa') or '').strip() or None
+    dependencia = _buscar_dependencia_exacta(
+        nombre, sector, telefono, domicilio, correo
+    )
+    if dependencia:
+        return dependencia
+
+    dependencia = Dependencia(
+        nombre=nombre,
+        tipo='Practicas',
+        sector=sector,
+        telefono=telefono,
+        domicilio=domicilio,
+        correo=correo,
+    )
+    db.session.add(dependencia)
+    db.session.flush()
+    return dependencia
+
+
 def _siguiente_numero_practica(campo, excluir_id=None):
     query = active_query(Practica)
     if excluir_id:
@@ -575,14 +930,16 @@ def _siguiente_numero_practica(campo, excluir_id=None):
     return (ultimo or 0) + 1
 
 
-def _sincronizar_datos_practica(practica, alumno):
+def _sincronizar_datos_practica(practica, alumno, dependencia=None):
     practica.nombre = alumno.nombre
-    practica.nombre_minusculas = (alumno.nombre or '').lower() or None
+    practica.nombre_minusculas = (alumno.nombre or '').title() or None
     practica.matricula = alumno.matricula
     practica.carrera = alumno.carrera.nombre.upper() if alumno.carrera else None
     practica.generacion = alumno.generacion_completa if alumno.generacion_completa != 'Pendiente' else None
 
-    dependencia = _asignar_dependencia_y_documentos_practicas(alumno, practica.empresa)
+    dependencia = _asignar_dependencia_y_documentos_practicas(
+        alumno, practica.empresa, dependencia=dependencia
+    )
     if dependencia:
         practica.empresa = dependencia.nombre
         practica.sector = dependencia.sector
@@ -716,7 +1073,8 @@ def generar_word_expediente(alumno_id):
     expediente_obj = _expediente_practicas_de_alumno(alumno_id)
     try:
         output_path, filename = generar_documento_word(
-            expediente_obj.alumno_id, 'p'
+            expediente_obj.alumno_id, 'p',
+            template_name=FORMATO_ACREDITACION_PP_FILENAME,
         )
         return send_file(output_path, as_attachment=True, download_name=filename)
     except Exception as e:
@@ -731,9 +1089,9 @@ def generar_word_documento_expediente(alumno_id, doc_id):
         id=doc_id, expediente_id=expediente_obj.id
     ).first_or_404()
     try:
-        template_name = f'{documento.nombre_formato}.docx'
-        output_path, filename = generar_documento_pdf(
-            expediente_obj.alumno_id, 'p', template_name=template_name
+        output_path, filename = generar_documento_word(
+            expediente_obj.alumno_id, 'p',
+            template_name=FORMATO_ACREDITACION_PP_FILENAME,
         )
         return send_file(output_path, as_attachment=True, download_name=filename)
     except Exception as e:
@@ -748,6 +1106,13 @@ def asignar(alumno_id):
     alumno = active_query(Alumno).filter_by(id=alumno_id).first_or_404()
 
     if request.method == 'POST':
+        # ── Validar formulario antes de procesar ───────────────────────
+        errores = _validar_practica_form(request.form)
+        if errores:
+            for error in errores:
+                flash(error, 'danger')
+            return redirect(request.url)
+
         practica = Practica()
         # Mantener la relación con el alumno y su expediente p; la matrícula
         # visible puede cambiar, pero la FK conserva la integración.
@@ -804,7 +1169,12 @@ def asignar(alumno_id):
         practica.proceso = fv('proceso')
 
         # ── Col 14-19: Empresa ─────────────────────────────────────────
-        practica.empresa = fv('empresa')
+        try:
+            dependencia = _resolver_dependencia_practicas(request.form)
+        except ValueError as error:
+            flash(str(error), 'danger')
+            return redirect(request.url)
+        practica.empresa = dependencia.nombre
         practica.sector = fv('sector')
         practica.nombre_proyecto = fv('nombre_proyecto')
         practica.tel_empresa = fv('tel_empresa')
@@ -877,10 +1247,10 @@ def asignar(alumno_id):
         practica.paso_por_constancia = fv('paso_por_constancia')
         practica.pc = fv('pc')
 
-        _sincronizar_datos_practica(practica, alumno)
+        _sincronizar_datos_practica(practica, alumno, dependencia=dependencia)
         db.session.add(practica)
         db.session.flush()
-        _asignar_dependencia_y_documentos_practicas(alumno, practica.empresa)
+        cerrar_servicio_social_por_practicas(alumno)
         db.session.commit()
         flash('Registro de prácticas creado exitosamente.', 'success')
         return redirect(url_for('practicas.alumnos'))
@@ -907,6 +1277,7 @@ def asignar(alumno_id):
                            prefill=prefill,
                            practica_model=Practica,
                            dependencias=dependencias,
+                           sectores=obtener_sectores_dinamicos(),
                            modulo_label=MODULO_LABEL,
                            modulo_prefix=MODULO_PREFIX)
 
@@ -1015,6 +1386,13 @@ def editar_practica(practica_id):
         abort(404)
 
     if request.method == 'POST':
+        # ── Validar formulario antes de procesar ───────────────────────
+        errores = _validar_practica_form(request.form)
+        if errores:
+            for error in errores:
+                flash(error, 'danger')
+            return redirect(request.url)
+
         consecutivo_original = practica.consecutivo
         date_fields = {
             field for field, column in Practica.__table__.columns.items()
@@ -1061,6 +1439,7 @@ def editar_practica(practica_id):
     return render_template(
         'practicas/asignar_form.html', alumno=alumno, practica=practica,
         prefill={}, practica_model=Practica, dependencias=dependencias,
+        sectores=obtener_sectores_dinamicos(),
         modulo_label=MODULO_LABEL, modulo_prefix=MODULO_PREFIX,
         form_action=url_for('practicas.editar_practica', practica_id=practica.id),
         form_title='Editar Registro de Prácticas', form_submit='Actualizar Registro',
@@ -1142,6 +1521,10 @@ def importar():
 def procesar_excel_practicas(filepath):
     import pandas as pd
     from app.services.logic_expediente import crear_expedientes_alumno, registrar_alumno
+
+    # Repara alumnos históricos antes de incorporar nuevas prácticas.
+    sincronizar_servicio_social_con_practicas()
+    sincronizar_carreras_practicas()
 
     def normalizar(valor):
         texto = '' if valor is None else str(valor).strip()
@@ -1227,17 +1610,7 @@ def procesar_excel_practicas(filepath):
     }
 
     def buscar_carrera(valor):
-        clave = clave_encabezado(valor)
-        aliases = {
-            'LOGISTICA': 'Logística', 'BIOTECNOLOGIA': 'Biotecnología',
-            'PGA': 'PGA', 'PROGRAMACION': 'Programación',
-            'MECATRONICA': 'Mecatrónica',
-        }
-        nombre = aliases.get(clave, str(valor).strip() if valor else '')
-        return Carrera.query.filter(
-            Carrera.is_deleted == False,
-            db.func.lower(Carrera.nombre) == nombre.lower()
-        ).first() if nombre else None
+        return resolver_carrera_practicas(valor)
 
     def buscar_alumno(matricula, nombre):
         if matricula:
@@ -1347,7 +1720,7 @@ def procesar_excel_practicas(filepath):
             else:
                 if nombre and not alumno.nombre:
                     alumno.nombre = nombre
-                if carrera and not alumno.carrera_id:
+                if carrera:
                     alumno.carrera_id = carrera.id
                 if anio_generacion and not alumno.anio_generacion:
                     alumno.anio_generacion = anio_generacion
@@ -1362,29 +1735,11 @@ def procesar_excel_practicas(filepath):
                         if expediente.tipo_modulo not in tipos_faltantes:
                             db.session.delete(expediente)
 
-            alumno.estatus = 'Servicio Finalizado'
-
             empresa = valores.get('empresa')
             if empresa is not None and not pd.isna(empresa):
                 empresa = str(empresa).strip()
             if empresa:
-                dependencia = buscar_o_crear_dependencia(empresa, valores)
-                expediente_practicas = active_query(Expediente).filter_by(
-                    alumno_id=alumno.id, tipo_modulo='p'
-                ).first()
-                if expediente_practicas:
-                    expediente_practicas.dependencia_id = dependencia.id
-                    for nombre_formato in DOCUMENTOS_PRACTICAS_AUTO:
-                        existe = active_query(Documento).filter_by(
-                            expediente_id=expediente_practicas.id,
-                            nombre_formato=nombre_formato,
-                        ).first()
-                        if not existe:
-                            db.session.add(Documento(
-                                expediente_id=expediente_practicas.id,
-                                nombre_formato=nombre_formato,
-                                estado='Pendiente',
-                            ))
+                buscar_o_crear_dependencia(empresa, valores)
 
             practica = Practica()
 
@@ -1422,7 +1777,11 @@ def procesar_excel_practicas(filepath):
                 else:
                     setattr(practica, field, str(value).strip())
             _sincronizar_datos_practica(practica, alumno)
+            if carrera:
+                alumno.carrera_id = carrera.id
+                practica.carrera = carrera.nombre.upper()
             db.session.add(practica)
+            cerrar_servicio_social_por_practicas(alumno)
             savepoint.commit()
             insertados += 1
         except Exception as e:

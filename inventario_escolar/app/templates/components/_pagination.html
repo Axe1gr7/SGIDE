@@ -18,6 +18,52 @@
     {% if pagination.has_next %}
     <a href="{{ url_for(request.endpoint, page=pagination.next_num, **args) }}" class="page-link">→</a>
     {% endif %}
-</nav>
-{% endif %}
 
+    <div style="display: flex; align-items: center; margin-left: 10px; gap: 5px;">
+        <input type="text" id="page-jump-input-{{ pagination.page }}" class="glass-input" style="width: 50px; text-align: center; padding: 6px;" placeholder="Ir a">
+        <button id="page-jump-btn-{{ pagination.page }}" class="glass-btn glass-btn-small" style="padding: 6px 10px;">Ir</button>
+    </div>
+</nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('page-jump-btn-{{ pagination.page }}');
+    const input = document.getElementById('page-jump-input-{{ pagination.page }}');
+    
+    if (btn && input) {
+        btn.addEventListener('click', function() {
+            const val = input.value.trim();
+            const pageNum = parseInt(val, 10);
+            
+            // Si es inválido o no numérico, no hacer nada
+            if (isNaN(pageNum)) return;
+            
+            // Si es <= 0, no hacer nada
+            if (pageNum <= 0) return;
+            
+            let targetPage = pageNum;
+            const totalPages = parseInt("{{ pagination.pages }}", 10);
+            
+            // Si es mayor al total, redirigir a la última página
+            if (pageNum > totalPages) {
+                targetPage = totalPages;
+            }
+            
+            // Generar URL con todos los argumentos de query actuales excepto 'page'
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('page', targetPage);
+            
+            window.location.href = currentUrl.toString();
+        });
+        
+        // Permitir usar "Enter" en el input
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btn.click();
+            }
+        });
+    }
+});
+</script>
+{% endif %}

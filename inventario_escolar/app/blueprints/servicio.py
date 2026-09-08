@@ -9,6 +9,7 @@ from app.services.logic_word import generar_documento_pdf, generar_documento_wor
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_excel import procesar_excel
 from app.services.logic_zip import procesar_zip_pdfs
+from app.services.logic_expediente import sincronizar_servicio_social_con_practicas
 from app.models import CarpetaCompartida, ArchivoCompartido
 
 servicio_bp = Blueprint('servicio', __name__)
@@ -17,7 +18,7 @@ MODULO_TIPO = 's'
 MODULO_LABEL = 'Servicio Social'
 MODULO_PREFIX = 'servicio'
 
-SECTORES = ['Municipal', 'Estatal', 'Salud']
+from app.blueprints.dependencias import obtener_sectores_dinamicos
 
 @servicio_bp.before_request
 @login_required
@@ -30,7 +31,7 @@ def before_request():
 def menu():
     total_alumnos = active_query(Alumno).count()
     total_expedientes = active_query(Expediente).filter_by(tipo_modulo=MODULO_TIPO).count()
-    servicio_finalizado = active_query(Alumno).filter_by(estatus='Servicio Finalizado').count()
+    servicio_finalizado = sum(1 for a in active_query(Alumno).all() if a.servicio_completado)
     total_dependencias = active_query(Dependencia).filter(
         Dependencia.tipo.in_(['Servicio', 'Ambos'])
     ).count()
@@ -65,7 +66,7 @@ def dashboard():
         fss8 = next((d for d in docs if 'FSS8' in (d.nombre_formato or '') or 'terminacion' in (d.nombre_formato or '').lower()), None)
         has_entregados = any(d.estado == 'Entregado' for d in docs)
 
-        if (fss8 and fss8.estado == 'Entregado') or (exp.alumno and exp.alumno.estatus == 'Servicio Finalizado'):
+        if (fss8 and fss8.estado == 'Entregado') or (exp.alumno and exp.alumno.servicio_completado):
             completados += 1
         elif has_entregados:
             en_tramite += 1
@@ -74,9 +75,10 @@ def dashboard():
 
     # Conteo por sector
     sector_counts = {}
-    for sec in SECTORES:
+    sectores_dinamicos = obtener_sectores_dinamicos()
+    for sec in sectores_dinamicos:
         sector_counts[sec] = sum(1 for exp in expedientes if exp.sector == sec)
-    sector_counts['Sin asignar'] = sum(1 for exp in expedientes if not exp.sector or exp.sector not in SECTORES)
+    sector_counts['Sin asignar'] = sum(1 for exp in expedientes if not exp.sector or exp.sector not in sectores_dinamicos)
 
     # Conteo por carrera
     carreras = active_query(Carrera).all()
@@ -98,6 +100,8 @@ def dashboard():
 
 @servicio_bp.route('/alumnos')
 def alumnos():
+    sincronizar_servicio_social_con_practicas()
+    db.session.commit()
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '').strip()
     carrera_filter = request.args.get('carrera_filter', '')
@@ -118,7 +122,7 @@ def alumnos():
 
     for a in all_alumnos:
         exp = active_query(Expediente).filter_by(alumno_id=a.id, tipo_modulo=MODULO_TIPO).first()
-        is_finalizado = a.estatus == 'Servicio Finalizado' or (exp and any('FSS8' in (d.nombre_formato or '') and d.estado == 'Entregado' for d in exp.documentos))
+        is_finalizado = a.servicio_completado
         has_expediente = exp is not None
 
         if solo_aptos and is_finalizado:
@@ -140,17 +144,43 @@ def alumnos():
     end = start + per_page
     paginated_alumnos = alumnos_data[start:end]
 
+    class FakePagination:
+        def __init__(self, page, per_page, total, items):
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = (total + per_page - 1) // per_page if total > 0 else 1
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1
+            self.next_num = page + 1
+            self.items = items
+
+        def iter_pages(self, left_edge=2, left_current=2,
+                       right_current=5, right_edge=2):
+            last_num = 0
+            for num in range(1, self.pages + 1):
+                if (
+                    num <= left_edge
+                    or (num > self.page - left_current - 1
+                        and num < self.page + right_current)
+                    or num > self.pages - right_edge
+                ):
+                    if last_num + 1 != num:
+                        yield None
+                    yield num
+                    last_num = num
+
+    pagination = FakePagination(page, per_page, total, paginated_alumnos)
+
     carreras = active_query(Carrera).all()
-    estatuses = ['Activo', 'Inactivo', 'Servicio Finalizado', 'Egresado']
+    estatuses = ['Activo', 'Inactivo', 'Egresado', 'Baja']
     dependencias = active_query(Dependencia).filter(Dependencia.tipo.in_(['Servicio', 'Ambos'])).all()
     carpetas_compartidas = active_query(CarpetaCompartida).all()
 
     return render_template('servicio/alumnos.html',
                            alumnos_data=paginated_alumnos,
-                           page=page,
-                           total_pages=total_pages,
-                           has_prev=(page > 1),
-                           has_next=(page < total_pages),
+                           pagination=pagination,
                            search=search,
                            carrera_filter=carrera_filter,
                            estatus_filter=estatus_filter,
@@ -192,7 +222,7 @@ def lista():
                            search=search,
                            estado_filter=estado_filter,
                            sector_filter=sector_filter,
-                           sectores=SECTORES,
+                           sectores=obtener_sectores_dinamicos(),
                            es_servicio=True,
                            modulo_label=MODULO_LABEL,
                            modulo_tipo=MODULO_TIPO,
@@ -279,7 +309,7 @@ def detalle(id):
                            expediente=expediente,
                            alumno=expediente.alumno,
                            documentos=documentos,
-                           sectores=SECTORES,
+                           sectores=obtener_sectores_dinamicos(),
                            dependencias=dependencias,
                            es_servicio=True,
                            modulo_label=MODULO_LABEL,
@@ -290,8 +320,8 @@ def detalle(id):
 def actualizar_sector(id):
     expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
     sector = request.form.get('sector')
-    if sector in SECTORES:
-        expediente.sector = sector
+    if sector and sector.strip():
+        expediente.sector = sector.strip()
         db.session.commit()
         flash('Sector actualizado.', 'success')
     else:
@@ -373,10 +403,7 @@ def editar_documento(id, doc_id):
             doc.ruta_archivo = guardar_documento(expediente, archivo)
             doc.estado = 'Entregado'
 
-        # Actualizar estatus del alumno si es la constancia final
-        if doc.nombre_formato == 'FSS8 Constancia terminacion de ss' and doc.estado == 'Entregado':
-            if expediente.alumno:
-                expediente.alumno.estatus = 'Servicio Finalizado'
+        # Ya no sobreescribimos el estatus académico del alumno; el sistema usa alumno.servicio_completado
 
         db.session.commit()
         flash('Documento actualizado.', 'success')

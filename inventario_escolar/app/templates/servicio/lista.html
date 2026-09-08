@@ -254,7 +254,7 @@
                 <td style="white-space: nowrap;"><span class="badge badge-{{ e.alumno.estatus }}">{{ e.alumno.estatus }}</span></td>
                 <td style="white-space: nowrap;">
                     {% if e.sector %}
-                    <span class="badge badge-{{ e.sector }}">{{ e.sector }}</span>
+                    <span class="badge" style="{{ e.sector | sector_color }}">{{ e.sector }}</span>
                     {% else %}
                     <span style="color: var(--text-muted);">—</span>
                     {% endif %}

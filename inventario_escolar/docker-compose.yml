@@ -10,7 +10,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./migration_vinculacion.sql:/docker-entrypoint-initdb.d/1_migration_vinculacion.sql
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -22,7 +22,7 @@ services:
     restart: always
     command: ["sh", "./entrypoint.sh"]
     ports:
-      - "80:5000"
+      - "0.0.0.0:80:5000"
     volumes:
       - uploads_data:/uploads
       - templates_word_data:/app/app/templates_word

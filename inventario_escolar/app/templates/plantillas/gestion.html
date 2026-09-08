@@ -131,6 +131,22 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+.plt-info-box {
+    margin-bottom: 16px;
+    padding: 16px 18px;
+    border: 1px solid rgba(59,130,246,0.35);
+    border-left: 4px solid #3b82f6;
+    border-radius: 10px;
+    background: rgba(59,130,246,0.08);
+}
+
+.plt-marker-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
 </style>
 {% endblock %}
 
@@ -179,24 +195,41 @@
     <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
         <i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent);"></i> Subir Nueva Plantilla (.docx)
     </h3>
+    <div id="practicasPlantillaInfo" class="plt-info-box" {% if modulo_filter != 'p' %}style="display: none;"{% endif %}>
+        <strong><i class="fa-solid fa-circle-info"></i> Marcadores para Formato Constancia de Acreditacion PP</strong>
+        <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin: 8px 0 0;">
+            Edita la plantilla original de Word e incluye estos marcadores para que el sistema reemplace la información real del alumno:
+        </p>
+        <div class="plt-marker-list">
+            {% for marker in ['NCONSTANCIA', 'NOMBRE', 'nombre', 'CARRERA', 'MATRICULA', 'FINICIO', 'FFIN', 'EMPRESA'] %}
+            <span class="tag-badge">{{ '{{' }}{{ marker }}{{ '}}' }}</span>
+            {% endfor %}
+        </div>
+    </div>
     <form action="{{ url_for('plantillas.subir') }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
         <div style="flex: 1; min-width: 200px;">
             <label class="form-label">Asignar a Módulo</label>
-            <select name="modulo_dest" class="glass-select">
+            <select name="modulo_dest" id="moduloDest" class="glass-select">
                 <option value="p" {% if modulo_filter == 'p' %}selected{% endif %}>Prácticas Profesionales</option>
                 <option value="s" {% if modulo_filter == 's' %}selected{% endif %}>Servicio Social</option>
                 <option value="v" {% if modulo_filter == 'v' %}selected{% endif %}>Vinculación</option>
             </select>
         </div>
-        <div style="flex: 2; min-width: 240px;">
-            <label class="form-label">Nombre del Formato / Constancia</label>
-            <input type="text" name="nombre_custom" class="glass-input" placeholder="Ej: Constancia_Termino_Practicas" required>
+        <div id="tipoPlantillaPracticasGroup" style="flex: 2; min-width: 260px; {% if modulo_filter != 'p' %}display: none;{% endif %}">
+            <label class="form-label">Tipo de plantilla</label>
+            <select name="tipo_plantilla" class="glass-select">
+                <option value="acreditacion_pp" selected>Formato Constancia de Acreditacion PP</option>
+            </select>
         </div>
-        <div style="flex: 2; min-width: 240px;">
+        <div id="aliasPlantillaGroup" style="flex: 1 1 100%; min-width: 240px; order: 4;">
+            <label class="form-label"><span id="aliasLabel">ALIAS del archivo</span></label>
+            <input type="text" name="nombre_custom" class="glass-input" placeholder="Opcional: nombre alternativo del archivo">
+        </div>
+        <div style="flex: 2; min-width: 240px; order: 3;">
             <label class="form-label">Archivo Word (.docx)</label>
             <input type="file" name="plantilla" accept=".docx" class="glass-input" required>
         </div>
-        <button type="submit" class="glass-btn" style="padding: 10px 24px; font-size: 0.95rem;">
+        <button type="submit" class="glass-btn" style="padding: 10px 24px; font-size: 0.95rem; order: 5;">
             <i class="fa-solid fa-upload"></i> Subir Plantilla
         </button>
     </form>
@@ -345,6 +378,21 @@
 
 {% block scripts %}
 <script>
+const moduloDest = document.getElementById('moduloDest');
+const practicasInfo = document.getElementById('practicasPlantillaInfo');
+const tipoPracticasGroup = document.getElementById('tipoPlantillaPracticasGroup');
+
+function actualizarFormularioPlantilla() {
+    const esPracticas = moduloDest && moduloDest.value === 'p';
+    if (practicasInfo) practicasInfo.style.display = esPracticas ? 'block' : 'none';
+    if (tipoPracticasGroup) tipoPracticasGroup.style.display = esPracticas ? 'block' : 'none';
+}
+
+if (moduloDest) {
+    moduloDest.addEventListener('change', actualizarFormularioPlantilla);
+    actualizarFormularioPlantilla();
+}
+
 function openGenerateModal(filename, displayName, modType) {
     document.getElementById('modalTemplateFile').value = filename;
     document.getElementById('modalTemplateName').textContent = 'Constancia: ' + displayName;

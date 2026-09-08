@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models import User, Carrera, Alumno, Role, Expediente, Documento
 from app.decorators import roles_required, active_query
 from app.services.logic_excel import procesar_excel
-from app.services.logic_expediente import registrar_alumno
+from app.services.logic_expediente import registrar_alumno, sincronizar_carreras_practicas
 import os
 
 admin_bp = Blueprint('admin', __name__)
@@ -109,6 +109,8 @@ def eliminar_carrera(id):
 # --- ALUMNOS ---
 @admin_bp.route('/alumnos')
 def alumnos():
+    sincronizar_carreras_practicas()
+    db.session.commit()
     page = request.args.get('page', 1, type=int)
     carrera_filter = request.args.get('carrera_filter')
     search = request.args.get('search')

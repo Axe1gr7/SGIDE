@@ -99,8 +99,6 @@ class Dependencia(db.Model):
     nombre = db.Column(db.String(200), nullable=False)
     tipo = db.Column(db.String(20), nullable=False, default='Ambos')  # Practicas / Servicio / Ambos
     sector = db.Column(db.String(200), nullable=True)
-    rubro = db.Column(db.String(150), nullable=True)
-    area_interes = db.Column(db.String(200), nullable=True)
     domicilio = db.Column(db.String(300), nullable=True)
     contacto = db.Column(db.String(150), nullable=True)
     telefono = db.Column(db.String(50), nullable=True)
@@ -246,11 +244,6 @@ class Practica(db.Model):
     CARRERAS       = ['MECATRÓNICA', 'BIOTECNOLOGÍA', 'LOGÍSTICA', 'PROGRAMACIÓN']
     OBSERVACIONES_OPTS = ['APTO', 'EN TRÁMITE', 'CONCLUIDO', 'BAJA']
     PROCESOS       = ['EMPRESA', 'INSTITUCIÓN', 'PROYECTO', 'DUAL', 'CERTIFICACIÓN']
-    SECTORES       = [
-        'SECTOR PÚBLICO', 'MICROEMPRESAS', 'PEQUEÑAS EMPRESAS',
-        'MEDIANAS EMPRESAS', 'GRANDES EMPRESAS',
-        'SECTOR SOCIAL', 'ORGANIZACIONES DE LA SOCIEDAD CIVIL',
-    ]
     SEXOS          = ['HOMBRE', 'MUJER']
     OPTS_SNC       = ['SI', 'NO', 'CORREGIR']   # SI / NO / CORREGIR
     ESTADOS        = ['ENTREGADO', 'ATRASADO']

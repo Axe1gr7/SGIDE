@@ -87,6 +87,38 @@
   padding: 24px;
   margin-bottom: 24px;
 }
+
+.prac-form-actions {
+    position: sticky;
+    top: 82px;
+    z-index: 20;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 0 0 24px;
+    background: var(--bg-glass);
+    backdrop-filter: var(--prac-blur);
+    -webkit-backdrop-filter: var(--prac-blur);
+    border: 1px solid var(--prac-border);
+    border-radius: 12px;
+    box-shadow: var(--prac-shadow);
+}
+
+.dependencia-add-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    color: #fff;
+    cursor: pointer;
+}
+
+.dependencia-add-btn.is-active {
+    background: var(--danger);
+}
 </style>
 {% endblock %}
 
@@ -109,6 +141,15 @@
 </div>
 
 <form method="POST" action="{{ form_action or url_for('practicas.asignar', alumno_id=alumno.id) }}">
+
+<div class="prac-form-actions">
+    <a href="{{ url_for('practicas.alumnos') }}" class="glass-btn glass-btn-outline">
+        <i class="fa-solid fa-xmark"></i> Cancelar
+    </a>
+    <button type="submit" class="glass-btn">
+        <i class="fa-solid fa-floppy-disk"></i> {{ form_submit or 'Guardar Registro' }}
+    </button>
+</div>
 
 {# ══════════════════════════════════════════════════════════════════════════ #}
 {# SECCIÓN 1: Datos del Alumno                                              #}
@@ -213,31 +254,38 @@
 {# SECCIÓN 3: Empresa / Proyecto                                            #}
 {# ══════════════════════════════════════════════════════════════════════════ #}
 <div class="glass-card" style="margin-bottom: 24px;">
-    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
-        <i class="fa-solid fa-building" style="color: var(--accent);"></i> Empresa / Proyecto
+    <h3 style="margin-bottom: 15px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-building" style="color: var(--accent);"></i>
+        <span style="flex: 1;">Empresa / Proyecto</span>
+        <button type="button" id="toggleNuevaDependencia" class="dependencia-add-btn" title="Registrar o editar una dependencia" aria-label="Registrar o editar una dependencia">
+            <i class="fa-solid fa-plus"></i>
+        </button>
     </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Empresa / Dependencia</label>
-            <select name="empresa" class="glass-select">
+            <input type="hidden" name="dependencia_id" id="dependenciaId">
+            <input type="hidden" name="crear_dependencia" id="crearDependencia" value="0">
+            <select name="empresa" id="empresaDependencia" class="glass-select">
                 <option value="">Seleccionar...</option>
                 {% for dep in dependencias %}
-                <option value="{{ dep.nombre }}" data-sector="{{ dep.sector or '' }}" data-telefono="{{ dep.telefono or '' }}" data-domicilio="{{ dep.domicilio or '' }}" data-correo="{{ dep.correo or '' }}">{{ dep.nombre }}</option>
+                <option value="{{ dep.id }}" data-nombre="{{ dep.nombre }}" data-sector="{{ dep.sector or '' }}" data-telefono="{{ dep.telefono or '' }}" data-domicilio="{{ dep.domicilio or '' }}" data-correo="{{ dep.correo or '' }}">{{ dep.nombre }}</option>
                 {% endfor %}
                 {% if practica and practica.empresa and practica.empresa not in dependencias|map(attribute='nombre')|list %}
-                <option value="{{ practica.empresa }}">{{ practica.empresa }}</option>
+                <option value="legacy" data-nombre="{{ practica.empresa }}">{{ practica.empresa }}</option>
                 {% endif %}
-                <option value="Otra">Otra (Registrar primero en Dependencias)</option>
+                <option value="new">Nueva dependencia...</option>
             </select>
+            <input type="text" name="empresa_nueva" id="empresaNueva" class="glass-input" placeholder="Nombre de la nueva dependencia" style="display: none; margin-top: 8px;">
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Sector</label>
-            <select name="sector" class="glass-select">
-                <option value="">Seleccionar...</option>
-                {% for opt in practica_model.SECTORES %}
-                <option value="{{ opt }}">{{ opt }}</option>
+            <input list="sectores-list" name="sector" class="glass-input dependencia-field" placeholder="Escriba o seleccione un sector" disabled>
+            <datalist id="sectores-list">
+                {% for opt in sectores %}
+                <option value="{{ opt }}"></option>
                 {% endfor %}
-            </select>
+            </datalist>
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Nombre del Proyecto</label>
@@ -245,15 +293,15 @@
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Tel. Empresa</label>
-            <input type="text" name="tel_empresa" class="glass-input" placeholder="Teléfono de la empresa">
+            <input type="text" name="tel_empresa" class="glass-input dependencia-field" placeholder="Teléfono de la empresa" disabled>
         </div>
         <div class="form-group" style="margin-bottom:0; grid-column: span 2;">
             <label class="form-label">Dirección Empresa</label>
-            <input type="text" name="direccion_empresa" class="glass-input" placeholder="Dirección completa">
+            <input type="text" name="direccion_empresa" class="glass-input dependencia-field" placeholder="Dirección completa" disabled>
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Correo Empresa</label>
-            <input type="text" name="correo_empresa" class="glass-input" placeholder="correo@empresa.com">
+            <input type="text" name="correo_empresa" class="glass-input dependencia-field" placeholder="correo@empresa.com" disabled>
         </div>
     </div>
 </div>
@@ -609,18 +657,6 @@
     </div>
 </div>
 
-{# ══════════════════════════════════════════════════════════════════════════ #}
-{# Botones de acción                                                         #}
-{# ══════════════════════════════════════════════════════════════════════════ #}
-<div style="display: flex; gap: 12px; justify-content: flex-end; margin-bottom: 40px;">
-    <a href="{{ url_for('practicas.alumnos') }}" class="glass-btn glass-btn-outline">
-        <i class="fa-solid fa-xmark"></i> Cancelar
-    </a>
-    <button type="submit" class="glass-btn">
-        <i class="fa-solid fa-floppy-disk"></i> {{ form_submit or 'Guardar Registro' }}
-    </button>
-</div>
-
 </form>
 {% endblock %}
 
@@ -633,22 +669,93 @@ document.addEventListener('DOMContentLoaded', function () {
         if (field && value !== null && value !== undefined) field.value = value;
     });
 
-    const empresa = document.querySelector('[name="empresa"]');
+    const empresa = document.querySelector('#empresaDependencia');
+    const dependenciaId = document.querySelector('#dependenciaId');
+    const crearDependencia = document.querySelector('#crearDependencia');
+    const toggleNuevaDependencia = document.querySelector('#toggleNuevaDependencia');
+    const empresaNueva = document.querySelector('#empresaNueva');
+    const dependenciaEditableFields = Array.from(document.querySelectorAll('.dependencia-field'));
     const dependenciaFields = {
         sector: document.querySelector('[name="sector"]'),
         tel_empresa: document.querySelector('[name="tel_empresa"]'),
         direccion_empresa: document.querySelector('[name="direccion_empresa"]'),
         correo_empresa: document.querySelector('[name="correo_empresa"]')
     };
-    if (empresa) {
-        empresa.addEventListener('change', function () {
-            const option = empresa.options[empresa.selectedIndex];
-            if (!option || !option.dataset.sector && !option.dataset.telefono && !option.dataset.domicilio && !option.dataset.correo) return;
+    let modoNuevaDependencia = false;
+
+    function seleccionarPorNombre(nombre) {
+        if (!nombre || !empresa) return;
+        const opcion = Array.from(empresa.options).find(function (item) {
+            return (item.dataset.nombre || '') === nombre;
+        });
+        if (opcion) empresa.value = opcion.value;
+    }
+
+    function aplicarDependencia() {
+        const option = empresa.options[empresa.selectedIndex];
+        const esNueva = !option || option.value === 'new';
+        modoNuevaDependencia = esNueva || modoNuevaDependencia;
+        crearDependencia.value = modoNuevaDependencia ? '1' : '0';
+        dependenciaId.value = !modoNuevaDependencia && option && /^\d+$/.test(option.value)
+            ? option.value
+            : '';
+
+        if (!modoNuevaDependencia) {
             dependenciaFields.sector.value = option.dataset.sector || '';
             dependenciaFields.tel_empresa.value = option.dataset.telefono || '';
             dependenciaFields.direccion_empresa.value = option.dataset.domicilio || '';
             dependenciaFields.correo_empresa.value = option.dataset.correo || '';
+        }
+        dependenciaEditableFields.forEach(function (field) {
+            field.disabled = !modoNuevaDependencia;
         });
+        empresaNueva.style.display = modoNuevaDependencia ? 'block' : 'none';
+        if (modoNuevaDependencia && !empresaNueva.value && option && option.dataset.nombre) {
+            empresaNueva.value = option.dataset.nombre;
+        }
+        toggleNuevaDependencia.classList.toggle('is-active', modoNuevaDependencia);
+        toggleNuevaDependencia.innerHTML = modoNuevaDependencia
+            ? '<i class="fa-solid fa-check"></i>'
+            : '<i class="fa-solid fa-plus"></i>';
+    }
+
+    if (empresa) {
+        empresa.addEventListener('change', function () {
+            const option = empresa.options[empresa.selectedIndex];
+            if (empresa.value === 'new') {
+                modoNuevaDependencia = true;
+                empresaNueva.value = '';
+                dependenciaFields.sector.value = '';
+                dependenciaFields.tel_empresa.value = '';
+                dependenciaFields.direccion_empresa.value = '';
+                dependenciaFields.correo_empresa.value = '';
+            } else {
+                if (!modoNuevaDependencia) {
+                    dependenciaFields.sector.value = option.dataset.sector || '';
+                    dependenciaFields.tel_empresa.value = option.dataset.telefono || '';
+                    dependenciaFields.direccion_empresa.value = option.dataset.domicilio || '';
+                    dependenciaFields.correo_empresa.value = option.dataset.correo || '';
+                } else if (!empresaNueva.value) {
+                    empresaNueva.value = option.dataset.nombre || '';
+                }
+            }
+            aplicarDependencia();
+        });
+        toggleNuevaDependencia.addEventListener('click', function () {
+            modoNuevaDependencia = !modoNuevaDependencia;
+            if (modoNuevaDependencia && empresa.value !== 'new') {
+                const option = empresa.options[empresa.selectedIndex];
+                dependenciaFields.sector.value = option.dataset.sector || '';
+                dependenciaFields.tel_empresa.value = option.dataset.telefono || '';
+                dependenciaFields.direccion_empresa.value = option.dataset.domicilio || '';
+                dependenciaFields.correo_empresa.value = option.dataset.correo || '';
+            }
+            aplicarDependencia();
+        });
+
+        const empresaInicial = practicaData.empresa;
+        seleccionarPorNombre(empresaInicial);
+        aplicarDependencia();
     }
 
     const meses = [

@@ -172,7 +172,7 @@
                             <div style="display: flex; gap: 5px;">
                                 {% if es_practicas or (es_servicio and doc.nombre_formato in ['FSS2 carta de presentacion', 'FSS4 Carta de aceptacion', 'FSS8 Constancia terminacion de ss']) %}
                                 <form method="POST" action="{{ url_for('practicas.generar_word_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.generar_word_documento', id=expediente.id, doc_id=doc.id) }}" style="display:inline;">
-                                    <button type="submit" class="glass-btn glass-btn-small" style="padding: 4px 8px; background: var(--info);" title="Imprimir Formato">🖨️</button>
+                                    <button type="submit" class="glass-btn glass-btn-small" style="padding: 4px 8px; background: var(--info);" title="{% if es_practicas %}Generar formato Word{% else %}Imprimir Formato{% endif %}">🖨️</button>
                                 </form>
                                 {% endif %}
                                 <a href="{{ url_for('practicas.editar_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.editar_documento', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 4px 8px;">✎</a>

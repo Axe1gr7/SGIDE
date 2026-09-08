@@ -191,7 +191,7 @@
                 <td style="text-align: center; white-space: nowrap;">
                     {% if item.is_finalizado %}
                     <span class="status-badge completed">
-                        <i class="fa-solid fa-circle-check"></i> Finalizado
+                      <i class="fa-solid fa-circle-check"></i> Completado
                     </span>
                     {% elif item.has_expediente %}
                     <span class="status-badge pending">
@@ -243,16 +243,5 @@
     </table>
 </div>
 
-<!-- Paginación -->
-{% if total_pages > 1 %}
-<div class="pagination-container" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
-    {% if has_prev %}
-    <a href="{{ url_for('servicio.alumnos', page=page-1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, solo_aptos=solo_aptos) }}" class="glass-btn glass-btn-outline glass-btn-small">« Anterior</a>
-    {% endif %}
-    <span class="glass-btn glass-btn-outline glass-btn-small disabled" style="cursor: default;">Página {{ page }} de {{ total_pages }}</span>
-    {% if has_next %}
-    <a href="{{ url_for('servicio.alumnos', page=page+1, search=search, carrera_filter=carrera_filter, estatus_filter=estatus_filter, solo_aptos=solo_aptos) }}" class="glass-btn glass-btn-outline glass-btn-small">Siguiente »</a>
-    {% endif %}
-</div>
-{% endif %}
+{% include 'components/_pagination.html' %}
 {% endblock %}

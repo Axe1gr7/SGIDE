@@ -16,6 +16,9 @@ PLANTILLAS_BASE = {
     'v': {'filename': 'plantilla_vinculacion.docx', 'label': 'Plantilla Base Vinculación'},
 }
 
+TIPO_PLANTILLA_PRACTICAS = 'acreditacion_pp'
+NOMBRE_PLANTILLA_PRACTICAS = 'Formato Constancia de Acreditacion PP'
+
 
 @plantillas_bp.before_request
 @login_required
@@ -72,6 +75,19 @@ def subir():
     file = request.files.get('plantilla')
     nombre_custom = request.form.get('nombre_custom', '').strip()
     modulo_dest = request.form.get('modulo_dest', 'p')
+    tipo_plantilla = request.form.get('tipo_plantilla', '')
+
+    if modulo_dest not in {'p', 's', 'v'}:
+        flash('El módulo seleccionado no es válido.', 'danger')
+        return redirect(url_for('plantillas.lista'))
+
+    if modulo_dest == 'p':
+        if tipo_plantilla != TIPO_PLANTILLA_PRACTICAS:
+            flash('Selecciona el tipo de plantilla de Prácticas Profesionales.', 'danger')
+            return redirect(url_for('plantillas.lista', modulo='p'))
+        nombre_base = nombre_custom or NOMBRE_PLANTILLA_PRACTICAS
+    else:
+        nombre_base = nombre_custom
 
     if not file or file.filename == '':
         flash('Debes seleccionar un archivo Word (.docx).', 'danger')
@@ -84,8 +100,8 @@ def subir():
     target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
     os.makedirs(target_dir, exist_ok=True)
 
-    if nombre_custom:
-        safe_name = secure_filename(nombre_custom.replace(' ', '_'))
+    if nombre_base:
+        safe_name = secure_filename(nombre_base.replace(' ', '_'))
         if not safe_name.lower().endswith('.docx'):
             safe_name += '.docx'
         filename = f"{modulo_dest}_{safe_name}"

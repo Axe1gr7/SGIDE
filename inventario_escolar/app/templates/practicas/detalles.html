@@ -124,6 +124,10 @@
         <i class="fa-solid fa-file-excel"></i> Descargar Excel
     </a>
 
+    <a href="{{ url_for('practicas.importar', tipo_importacion='registros_practicas') }}" class="glass-btn glass-btn-outline" style="white-space: nowrap;">
+        <i class="fa-solid fa-file-import"></i> Importar desde Excel
+    </a>
+
     <div style="margin-left: auto; display: flex; gap: 8px;">
         <a id="btnEditSelected" href="#" class="glass-btn glass-btn-outline" style="white-space: nowrap; opacity: 0.5; pointer-events: none;">
             <i class="fa-solid fa-pen"></i> Editar seleccionado
@@ -149,32 +153,108 @@
         </div>
 
         <form method="GET" action="{{ url_for('practicas.detalles') }}" id="filtrosForm">
+            {# ── Favoritos ── #}
+            <div id="favoritosSection" style="margin-bottom: 20px; display: none;">
+                <h4 style="margin: 0 0 10px 0; color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-star"></i> Filtros Favoritos
+                </h4>
+                <div id="favoritosContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(255,215,0,0.05); padding: 14px; border-radius: 8px; border: 1px dashed rgba(255,215,0,0.3);">
+                </div>
+            </div>
+
             {# ── Búsqueda general ── #}
-            <div class="form-group">
-                <label class="form-label">Búsqueda general</label>
-                <input type="text" name="search" class="glass-input" value="{{ request.args.get('search', '') }}" placeholder="Nombre, matrícula, empresa o No. constancia...">
+            <div id="orig-parent-search">
+                <div class="form-group filter-item" id="filter-search" data-filter-id="search">
+                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Búsqueda general</span>
+                        <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                    </label>
+                    <input type="text" name="search" class="glass-input" value="{{ request.args.get('search', '') }}" placeholder="Nombre, matrícula, empresa o No. constancia...">
+                </div>
             </div>
 
             {# ── Generación ── #}
-            <div class="form-group">
-                <label class="form-label">Generación</label>
-                <input type="text" name="f_generacion" class="glass-input" value="{{ request.args.get('f_generacion', '') }}" placeholder="Ej: 23-26">
+            <div id="orig-parent-generacion">
+                <div class="form-group filter-item" id="filter-generacion" data-filter-id="generacion">
+                    <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Generación</span>
+                        <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                    </label>
+                    <input type="text" name="f_generacion" class="glass-input" value="{{ request.args.get('f_generacion', '') }}" placeholder="Ej: 23-26">
+                </div>
             </div>
 
             {# ── Selectores ── #}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
                 {% for param_name, db_field, options, label in filtros_selector %}
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.82rem;">{{ label }}</label>
-                    <select name="{{ param_name }}" class="glass-select" style="font-size: 0.88rem;">
-                        <option value="">Todos</option>
-                        {% for opt in options %}
-                        <option value="{{ opt }}" {% if request.args.get(param_name) == opt %}selected{% endif %}>{{ opt }}</option>
-                        {% endfor %}
-                    </select>
+                <div id="orig-parent-{{ param_name }}">
+                    <div class="form-group filter-item" id="filter-{{ param_name }}" data-filter-id="{{ param_name }}" style="margin-bottom: 0;">
+                        <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>{{ label }}</span>
+                            <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                        </label>
+                        <select name="{{ param_name }}" class="glass-select" style="font-size: 0.88rem;">
+                            <option value="">Todos</option>
+                            {% for opt in options %}
+                            <option value="{{ opt }}" {% if request.args.get(param_name) == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 {% endfor %}
+
+                {# ── Filtro CARPETA (Bloque) ── #}
+                <div id="orig-parent-carpeta">
+                    <div class="form-group filter-item" id="filter-carpeta" data-filter-id="carpeta" style="margin-bottom: 0;">
+                        <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>CARPETA (Bloque)</span>
+                            <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                        </label>
+                        <select name="f_carpeta" class="glass-select" style="font-size: 0.88rem;">
+                            <option value="">Todos</option>
+                            {% for opt in carpeta_opts %}
+                            <option value="{{ opt }}" {% if request.args.get('f_carpeta') == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
+
+            {# ── Filtros de rango de fecha ── #}
+            <details style="margin-bottom: 20px;" {% if filtros_fecha_activos is defined and filtros_fecha_activos %}open{% endif %}
+                {% for pp, _db, _lbl in filtros_fecha %}{% if request.args.get(pp ~ '_desde') or request.args.get(pp ~ '_hasta') %} open{% endif %}{% endfor %}>
+                <summary style="cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 10px;">
+                    <i class="fa-solid fa-calendar-days"></i> Filtros por Fecha
+                    {% set ns = namespace(count=0) %}
+                    {% for pp, _db, _lbl in filtros_fecha %}
+                        {% if request.args.get(pp ~ '_desde') or request.args.get(pp ~ '_hasta') %}
+                            {% set ns.count = ns.count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if ns.count > 0 %}
+                    <span style="background: var(--accent); color: white; border-radius: 10px; padding: 1px 8px; font-size: 0.75rem; margin-left: 6px;">{{ ns.count }}</span>
+                    {% endif %}
+                </summary>
+                <div style="background: rgba(0,0,0,0.03); border-radius: 8px; padding: 14px; margin-top: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                        {% for param_prefix, db_field, label in filtros_fecha %}
+                        <div id="orig-parent-{{ param_prefix }}">
+                            <div class="form-group filter-item" id="filter-{{ param_prefix }}" data-filter-id="{{ param_prefix }}" style="margin-bottom: 0;">
+                                <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>{{ label }}</span>
+                                    <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                                </label>
+                                <div style="display: flex; gap: 6px; align-items: center;">
+                                    <input type="date" name="{{ param_prefix }}_desde" class="glass-input" style="font-size: 0.82rem; padding: 6px 8px; flex: 1;" value="{{ request.args.get(param_prefix ~ '_desde', '') }}" title="Desde">
+                                    <span style="color: var(--text-muted); font-size: 0.78rem; flex-shrink: 0;">a</span>
+                                    <input type="date" name="{{ param_prefix }}_hasta" class="glass-input" style="font-size: 0.82rem; padding: 6px 8px; flex: 1;" value="{{ request.args.get(param_prefix ~ '_hasta', '') }}" title="Hasta">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
 
             {# ── Columnas visibles ── #}
             <details style="margin-bottom: 20px;">
@@ -333,8 +413,64 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Si hay filtros activos al cargar, no abrir automáticamente
-    // pero si la URL tiene 0 resultados y filtros, podríamos indicar algo visual (ya lo hace el template)
+    // Favoritos
+    const favoritosContainer = document.getElementById('favoritosContainer');
+    const favoritosSection = document.getElementById('favoritosSection');
+    
+    function toggleFavorite(id, el, updateStorage=true) {
+        const isFav = el.parentElement.id === 'favoritosContainer';
+        const btn = el.querySelector('.btn-fav i');
+        
+        const origParent = document.getElementById('orig-parent-' + id);
+        if(isFav) {
+            if(origParent) {
+                origParent.appendChild(el);
+                origParent.style.display = '';
+            }
+            btn.classList.remove('fa-solid');
+            btn.classList.add('fa-regular');
+            btn.style.color = 'var(--text-muted)';
+            if(updateStorage) {
+                let f = JSON.parse(localStorage.getItem('sgide_practicas_favs') || '[]');
+                f = f.filter(x => x !== id);
+                localStorage.setItem('sgide_practicas_favs', JSON.stringify(f));
+            }
+        } else {
+            if(origParent) origParent.style.display = 'none';
+            favoritosContainer.appendChild(el);
+            btn.classList.remove('fa-regular');
+            btn.classList.add('fa-solid');
+            btn.style.color = 'gold';
+            if(updateStorage) {
+                let f = JSON.parse(localStorage.getItem('sgide_practicas_favs') || '[]');
+                if(!f.includes(id)) f.push(id);
+                localStorage.setItem('sgide_practicas_favs', JSON.stringify(f));
+            }
+        }
+        
+        if(favoritosContainer.children.length > 0) {
+            favoritosSection.style.display = 'block';
+        } else {
+            favoritosSection.style.display = 'none';
+        }
+    }
+
+    document.querySelectorAll('.btn-fav').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const el = this.closest('.filter-item');
+            const id = el.dataset.filterId;
+            toggleFavorite(id, el, true);
+        });
+    });
+
+    const savedFavs = JSON.parse(localStorage.getItem('sgide_practicas_favs') || '[]');
+    savedFavs.forEach(id => {
+        const el = document.getElementById('filter-' + id);
+        if(el) {
+            toggleFavorite(id, el, false);
+        }
+    });
 });
 </script>
 {% endblock %}

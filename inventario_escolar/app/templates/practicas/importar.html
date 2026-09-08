@@ -183,7 +183,7 @@
         <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--prac-border); border-radius: 14px; padding: 20px; margin-bottom: 24px;">
             <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 12px;"><i class="fa-solid fa-table-list" style="color: #10b981;"></i> Encabezados reconocidos (opcionales)</div>
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 10px; background: var(--prac-glass); border: 1px solid var(--prac-border); border-radius: 10px;">
-                {% for header in ['NOMBRE DE LA EMPRESA', 'SECTOR', 'RUBRO', 'UBICACIÓN', 'CONTACTO', 'TELÉFONO', 'AREA DE INTERES', 'CORREO'] %}<div style="font-size: 0.78rem; padding: 7px 8px; border-left: 3px solid #10b981; color: var(--text-primary); font-weight: 500;">{{ header }}</div>{% endfor %}
+                {% for header in ['NOMBRE DE LA EMPRESA', 'SECTOR', 'UBICACIÓN', 'CONTACTO', 'TELÉFONO', 'CORREO'] %}<div style="font-size: 0.78rem; padding: 7px 8px; border-left: 3px solid #10b981; color: var(--text-primary); font-weight: 500;">{{ header }}</div>{% endfor %}
             </div>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin: 12px 0 0;">Solo se procesa la tabla que comienza bajo estos encabezados en la hoja activa. El tipo de cada dependencia se asigna automáticamente como <strong>PRÁCTICAS</strong>.</p>
         </div>

@@ -21,6 +21,26 @@ def create_app(config_class=Config):
         carpetas_compartidas = CarpetaCompartida.query.filter_by(is_deleted=False).order_by(CarpetaCompartida.nombre).all()
         return dict(modulos_vinculacion=modulos, carpetas_compartidas=carpetas_compartidas)
 
+    @app.template_filter('sector_color')
+    def sector_color(sector_name):
+        if not sector_name:
+            return "background: rgba(128, 128, 128, 0.2); color: var(--text-muted);"
+        s = str(sector_name).strip().lower()
+        if s == 'municipal':
+            return "background: rgba(52, 199, 89, 0.2); color: var(--success);"
+        elif s == 'estatal':
+            return "background: rgba(0, 122, 255, 0.2); color: var(--info);"
+        elif s == 'salud':
+            return "background: rgba(255, 59, 48, 0.2); color: var(--danger);"
+        
+        # Generar un hash determinista para colores consistentes
+        hash_val = sum(ord(c) for c in s)
+        hue = hash_val % 360
+        # Color pastel para background y uno más oscuro para el texto
+        bg_color = f"hsla({hue}, 70%, 50%, 0.15)"
+        text_color = f"hsl({hue}, 80%, 40%)"
+        return f"background: {bg_color}; color: {text_color};"
+
     @login_manager.user_loader
     def load_user(user_id):
         user = db.session.get(User, int(user_id))

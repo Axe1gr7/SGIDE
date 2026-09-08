@@ -215,6 +215,16 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js no está disponible; no se pueden renderizar los gráficos.');
+    return;
+  }
+
+  const derechoData = {{ [tienen_derecho, no_tienen_derecho] | tojson }};
+  const estatusData = {{ [aptos, en_tramite, concluidas, estatus_counts['BAJA'], sin_estatus] | tojson }};
+  const procesoLabels = {{ proceso_data.keys() | list | tojson }};
+  const procesoData = {{ proceso_data.values() | list | tojson }};
+
     // Función para obtener colores en base al tema
     function getThemeColors() {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -233,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: ['Tienen Derecho', 'No Tienen Derecho'],
             datasets: [{
-                data: [{{ tienen_derecho }}, {{ no_tienen_derecho }}],
+                data: derechoData,
                 backgroundColor: [
                     'rgba(16, 185, 129, 0.85)', // Verde Success
                     'rgba(239, 68, 68, 0.85)'   // Rojo Danger
@@ -270,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: ['Apto', 'En Trámite', 'Concluido', 'Baja', 'Sin Estatus'],
             datasets: [{
-                data: [{{ aptos }}, {{ en_tramite }}, {{ concluidas }}, {{ estatus_counts['BAJA'] }}, {{ sin_estatus }}],
+                data: estatusData,
                 backgroundColor: [
                     'rgba(59, 130, 246, 0.85)',
                     'rgba(245, 158, 11, 0.85)',
@@ -308,9 +318,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const chartProcesos = new Chart(ctxProcesos, {
         type: 'bar',
         data: {
-            labels: {{ proceso_data.keys() | list | tojson }},
+            labels: procesoLabels,
             datasets: [{
-                data: {{ proceso_data.values() | list | tojson }},
+                data: procesoData,
                 backgroundColor: 'rgba(79, 70, 229, 0.8)', // Indigo Accent
                 borderRadius: 6,
                 borderSkipped: false

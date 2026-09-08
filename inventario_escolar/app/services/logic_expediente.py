@@ -1,5 +1,65 @@
 from app.extensions import db
-from app.models import Alumno, Expediente
+import unicodedata
+
+from app.models import Alumno, Expediente, Documento, Practica, Carrera
+
+DOCUMENTOS_SERVICIO_SOCIAL = (
+    'FSS2 carta de presentacion',
+    'FSS4 Carta de aceptacion',
+    'FSS8 Constancia terminacion de ss',
+)
+
+
+def _clave_carrera(valor):
+    texto = '' if valor is None else str(valor).strip().lower()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    return ''.join(c for c in texto if c.isalnum())
+
+
+def resolver_carrera_practicas(valor):
+    """Resuelve carreras del Excel de Prácticas tolerando acentos y variantes."""
+    clave = _clave_carrera(valor)
+    aliases = {
+        'logistica': 'Logística',
+        'biotecnologia': 'Biotecnología',
+        'pga': 'PGA',
+        'procesosdegestionadministrativa': 'PGA',
+        'programacion': 'Programación',
+        'mecatronica': 'Mecatrónica',
+    }
+    if clave.startswith('5t0') or clave.startswith('6t0'):
+        clave = clave[3:]
+        if clave.startswith('meca'):
+            clave = 'mecatronica'
+        elif clave.startswith('bio'):
+            clave = 'biotecnologia'
+        elif clave.startswith('log'):
+            clave = 'logistica'
+        elif clave.startswith('prog'):
+            clave = 'programacion'
+        elif clave.startswith('pga'):
+            clave = 'pga'
+    nombre = aliases.get(clave)
+    if not nombre:
+        return None
+    return Carrera.query.filter_by(nombre=nombre, is_deleted=False).first()
+
+
+def sincronizar_carreras_practicas():
+    """Completa la carrera de alumnos vinculados a prácticas activas."""
+    registros = Practica.query.filter(
+        Practica.is_deleted == False,
+        Practica.alumno_id != None,
+        db.or_(Practica.carrera != None, Practica.grado_carrera != None),
+    ).all()
+    actualizados = 0
+    for practica in registros:
+        carrera = resolver_carrera_practicas(practica.carrera or practica.grado_carrera)
+        if carrera and practica.alumno.carrera_id != carrera.id:
+            practica.alumno.carrera_id = carrera.id
+            actualizados += 1
+    return actualizados
 
 def generar_expediente_base(anio_generacion, carrera_prefijo):
     """
@@ -92,3 +152,50 @@ def registrar_alumno(nombre=None, matricula=None, anio_generacion=None, carrera_
     
     expedientes = crear_expedientes_alumno(alumno)
     return alumno, expedientes
+
+
+def cerrar_servicio_social_por_practicas(alumno):
+    """Cierra Servicio Social cuando existe una práctica profesional activa."""
+    expediente = Expediente.query.filter_by(
+        alumno_id=alumno.id,
+        tipo_modulo='s',
+        is_deleted=False,
+    ).first()
+    if expediente is None:
+        expediente = Expediente(
+            alumno_id=alumno.id,
+            tipo_modulo='s',
+            clave_expediente=f's-{alumno.expediente_base}',
+        )
+        db.session.add(expediente)
+        db.session.flush()
+
+    for nombre_formato in DOCUMENTOS_SERVICIO_SOCIAL:
+        documento = Documento.query.filter_by(
+            expediente_id=expediente.id,
+            nombre_formato=nombre_formato,
+            is_deleted=False,
+        ).first()
+        if documento is None:
+            documento = Documento(
+                expediente_id=expediente.id,
+                nombre_formato=nombre_formato,
+            )
+            db.session.add(documento)
+        documento.estado = 'Entregado'
+
+    return expediente
+
+
+def sincronizar_servicio_social_con_practicas():
+    """Sincroniza alumnos existentes que ya tienen prácticas activas."""
+    alumnos = (
+        Alumno.query.join(Alumno.practicas)
+        .filter(Alumno.is_deleted == False)
+        .filter(Practica.is_deleted == False)
+        .distinct()
+        .all()
+    )
+    for alumno in alumnos:
+        cerrar_servicio_social_por_practicas(alumno)
+    return alumnos
