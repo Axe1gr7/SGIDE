@@ -8,9 +8,21 @@
         <h2 style="margin-top: 5px;">Expediente: {{ expediente.clave_expediente }}</h2>
     </div>
 
+    {% if es_servicio and plantillas_servicio %}
+    <form method="POST" action="{{ url_for('servicio.generar_word', id=expediente.id) }}" style="display: flex; gap: 6px; align-items: center;">
+        <select name="template_name" class="glass-select" required aria-label="Formato de Servicio Social">
+            <option value="">Seleccionar formato Word...</option>
+            {% for plantilla in plantillas_servicio %}
+            <option value="{{ plantilla.key }}.docx">{{ plantilla.display_name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="glass-btn" style="background: var(--info);">Generar</button>
+    </form>
+    {% elif not es_servicio %}
     <form action="{{ url_for('practicas.generar_word_expediente', alumno_id=alumno.id) if es_practicas else url_for(modulo_prefix ~ '.generar_word', id=expediente.id) }}" method="POST">
         <button type="submit" class="glass-btn" style="background: var(--info);">📄 Generar Formato Word</button>
     </form>
+    {% endif %}
 </div>
 
 <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
@@ -172,7 +184,7 @@
                             <div style="display: flex; gap: 5px;">
                                 {% if es_practicas or (es_servicio and doc.nombre_formato in ['FSS2 carta de presentacion', 'FSS4 Carta de aceptacion', 'FSS8 Constancia terminacion de ss']) %}
                                 <form method="POST" action="{{ url_for('practicas.generar_word_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.generar_word_documento', id=expediente.id, doc_id=doc.id) }}" style="display:inline;">
-                                    <button type="submit" class="glass-btn glass-btn-small" style="padding: 4px 8px; background: var(--info);" title="{% if es_practicas %}Generar formato Word{% else %}Imprimir Formato{% endif %}">🖨️</button>
+                                    <button type="submit" class="glass-btn glass-btn-small" style="padding: 4px 8px; background: var(--info);" title="Generar formato Word sustituido">🖨️</button>
                                 </form>
                                 {% endif %}
                                 <a href="{{ url_for('practicas.editar_documento_expediente', alumno_id=alumno.id, doc_id=doc.id) if es_practicas else url_for(modulo_prefix ~ '.editar_documento', id=expediente.id, doc_id=doc.id) }}" class="glass-btn glass-btn-outline glass-btn-small" style="padding: 4px 8px;">✎</a>

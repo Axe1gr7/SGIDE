@@ -16,15 +16,95 @@ _WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 _WORD_NAMESPACES = {'w': _WORD_NAMESPACE}
 
 
+def _normalizar_texto(valor):
+    if valor is None:
+        return ''
+    return str(valor).strip()
+
+
+def _extraer_semestre_desde_grado_carrera(valor):
+    texto = _normalizar_texto(valor)
+    if not texto:
+        return None
+    match = re.search(r'(\d+)\s*T\s*0', texto, flags=re.IGNORECASE)
+    if match:
+        return int(match.group(1))
+    match = re.search(r'\b(\d+)\b', texto)
+    if match:
+        numero = int(match.group(1))
+        if 1 <= numero <= 12:
+            return numero
+    return None
+
+
+def _calcular_semestre_servicio(alumno, practica=None, fecha=None):
+    fecha = fecha or datetime.now()
+
+    if practica:
+        semestre = _extraer_semestre_desde_grado_carrera(practica.grado_carrera or practica.carrera)
+        if semestre is not None:
+            return min(6, max(1, semestre))
+
+    if alumno and alumno.anio_generacion is not None:
+        try:
+            anio_base = int(alumno.anio_generacion)
+        except (TypeError, ValueError):
+            return None
+
+        if anio_base < 100:
+            anio_base = 2000 + anio_base
+
+        diff_anos = max(0, fecha.year - anio_base)
+        semestre = (diff_anos * 2) + (1 if fecha.month >= 8 else 0) + 1
+        return min(6, max(1, semestre))
+
+    return None
+
+
+def _formatear_semestre(valor, estilo='ordinal'):
+    if valor in (None, ''):
+        return ''
+
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError):
+        return _normalizar_texto(valor)
+
+    if estilo == 'escrito':
+        texto = {
+            1: 'primero', 2: 'segundo', 3: 'tercero', 4: 'cuarto',
+            5: 'quinto', 6: 'sexto', 7: 'séptimo', 8: 'octavo',
+            9: 'noveno', 10: 'décimo', 11: 'onceavo', 12: 'doceavo',
+        }.get(numero, str(numero))
+        return texto
+
+    sufijos = {1: 'ro', 2: 'do', 3: 'ro', 4: 'to', 5: 'to', 6: 'to'}
+    return f"{numero}{sufijos.get(numero, 'to')}"
+
+
+def _estilo_semestre_por_template(template_name):
+    if not template_name:
+        return 'ordinal'
+    nombre = os.path.splitext(os.path.basename(template_name))[0].lower()
+    if 'fss8' in nombre:
+        return 'escrito'
+    return 'ordinal'
+
+
 def _obtener_ruta_plantilla(template_name):
-    """Busca plantillas administrables y el machote institucional de PP."""
+    """Resuelve machotes FSS desde la fuente institucional antes del volumen editable."""
+    project_root = os.path.dirname(current_app.root_path)
+    machote_path = os.path.join(project_root, 'machotes', template_name)
+    nombre = os.path.basename(template_name).lower()
+    es_machote_servicio = nombre.startswith('fss') and nombre.endswith('.docx')
+    if es_machote_servicio and os.path.exists(machote_path):
+        return machote_path
+
     template_path = os.path.join(current_app.config['TEMPLATES_WORD_FOLDER'], template_name)
     if os.path.exists(template_path):
         return template_path
-
-    if template_name == FORMATO_ACREDITACION_PP_FILENAME:
-        project_root = os.path.dirname(current_app.root_path)
-        return os.path.join(project_root, 'machotes', template_name)
+    if os.path.exists(machote_path):
+        return machote_path
 
     return template_path
 
@@ -94,6 +174,122 @@ def _actualizar_campos_combinacion(docx_path, valores):
                 os.remove(temporary.name)
 
 
+def _reemplazar_marcadores_servicio(docx_path, valores):
+    """Reemplaza marcadores FSS y subraya únicamente los valores insertados."""
+    marcadores = {
+        f'{{{{{nombre}}}}}': str(valor or '').upper()
+        for nombre, valor in valores.items()
+    }
+
+    def crear_run(texto, run_properties=None, subrayado=False):
+        run = etree.Element(f'{{{_WORD_NAMESPACE}}}r')
+        if run_properties is not None:
+            run.append(etree.fromstring(etree.tostring(run_properties)))
+        if subrayado:
+            properties = run.find(f'{{{_WORD_NAMESPACE}}}rPr')
+            if properties is None:
+                properties = etree.Element(f'{{{_WORD_NAMESPACE}}}rPr')
+                run.insert(0, properties)
+            underline = properties.find(f'{{{_WORD_NAMESPACE}}}u')
+            if underline is None:
+                underline = etree.SubElement(properties, f'{{{_WORD_NAMESPACE}}}u')
+            underline.set(f'{{{_WORD_NAMESPACE}}}val', 'single')
+        text_node = etree.SubElement(run, f'{{{_WORD_NAMESPACE}}}t')
+        text_node.text = texto
+        if texto[:1].isspace() or texto[-1:].isspace():
+            text_node.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+        return run
+
+    def agregar_segmentos(salida, texto, inicio, fin, nodos):
+        cursor = inicio
+        while cursor < fin:
+            nodo = next(node for node in nodos if node['inicio'] <= cursor < node['fin'])
+            segmento_fin = min(fin, nodo['fin'])
+            salida.append((texto[cursor:segmento_fin], nodo['run_properties'], False))
+            cursor = segmento_fin
+
+    with zipfile.ZipFile(docx_path, 'r') as source:
+        temporary = tempfile.NamedTemporaryFile(
+            suffix='.docx', dir=os.path.dirname(docx_path), delete=False
+        )
+        temporary.close()
+        try:
+            with zipfile.ZipFile(temporary.name, 'w') as destination:
+                for member in source.infolist():
+                    content = source.read(member.filename)
+                    if member.filename.startswith('word/') and member.filename.endswith('.xml'):
+                        root = etree.fromstring(content)
+                        changed = False
+                        for paragraph in root.xpath('.//w:p', namespaces=_WORD_NAMESPACES):
+                            text_nodes = paragraph.xpath('.//w:t', namespaces=_WORD_NAMESPACES)
+                            if not text_nodes:
+                                continue
+
+                            nodos = []
+                            posicion = 0
+                            for text_node in text_nodes:
+                                run = text_node.getparent()
+                                texto = text_node.text or ''
+                                nodos.append({
+                                    'inicio': posicion,
+                                    'fin': posicion + len(texto),
+                                    'run': run,
+                                    'run_properties': run.find(f'{{{_WORD_NAMESPACE}}}rPr'),
+                                })
+                                posicion += len(texto)
+
+                            paragraph_text = ''.join(node.text or '' for node in text_nodes)
+                            coincidencias = []
+                            for marker, value in marcadores.items():
+                                inicio = paragraph_text.find(marker)
+                                while inicio >= 0:
+                                    coincidencias.append((inicio, inicio + len(marker), value))
+                                    inicio = paragraph_text.find(marker, inicio + len(marker))
+                            coincidencias.sort(key=lambda item: item[0])
+                            if not coincidencias:
+                                continue
+
+                            segmentos = []
+                            cursor = 0
+                            for inicio, fin, valor in coincidencias:
+                                if inicio < cursor:
+                                    continue
+                                agregar_segmentos(segmentos, paragraph_text, cursor, inicio, nodos)
+                                propiedades = next(
+                                    node['run_properties'] for node in nodos
+                                    if node['inicio'] <= inicio < node['fin']
+                                )
+                                if valor:
+                                    segmentos.append((valor, propiedades, True))
+                                cursor = fin
+                            agregar_segmentos(segmentos, paragraph_text, cursor, len(paragraph_text), nodos)
+
+                            runs = []
+                            for nodo in nodos:
+                                if nodo['run'] not in runs:
+                                    runs.append(nodo['run'])
+                            primer_run = runs[0]
+                            insercion = paragraph.index(primer_run)
+                            for run in runs:
+                                paragraph.remove(run)
+                            for desplazamiento, (texto, propiedades, subrayado) in enumerate(segmentos):
+                                if texto:
+                                    paragraph.insert(
+                                        insercion + desplazamiento,
+                                        crear_run(texto, propiedades, subrayado),
+                                    )
+                            changed = True
+
+                        content = etree.tostring(
+                            root, xml_declaration=True, encoding='UTF-8', standalone=True
+                        ) if changed else content
+                    destination.writestr(member, content)
+            os.replace(temporary.name, docx_path)
+        finally:
+            if os.path.exists(temporary.name):
+                os.remove(temporary.name)
+
+
 def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
     """
     Generates a Word document from a template for a specific student and module.
@@ -110,7 +306,7 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
     # Map module type to default template name (fallback)
     default_template_map = {
         'p': FORMATO_ACREDITACION_PP_FILENAME,
-        's': 'plantilla_servicio.docx',
+        's': 'FSS2 carta de presentacion.docx',
         'v': 'plantilla_vinculacion.docx'
     }
 
@@ -173,13 +369,44 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
         matricula_practica = alumno.matricula or ''
         empresa_practica = dependencia.nombre if dependencia else ''
 
+    semestre_servicio = None
+    if tipo_modulo == 's':
+        semestre_servicio = _calcular_semestre_servicio(alumno, practica=practica)
+
+    estilo_semestre = _estilo_semestre_por_template(template_name)
+    semestres_context = {
+        'nsemestre': '',
+        'NSEMESTRE': '',
+        'semestre': '',
+        'SEMESTRE': '',
+        'semestre_numero': '',
+        'SEMESTRE_NUMERO': '',
+    }
+    if tipo_modulo == 's':
+        semestre_formateado = _formatear_semestre(semestre_servicio, estilo=estilo_semestre)
+        semestres_context = {
+            'nsemestre': semestre_formateado,
+            'NSEMESTRE': semestre_formateado.upper(),
+            'semestre': semestre_formateado,
+            'SEMESTRE': semestre_formateado.upper(),
+            'semestre_numero': semestre_servicio if semestre_servicio is not None else '',
+            'SEMESTRE_NUMERO': str(semestre_servicio) if semestre_servicio is not None else '',
+        }
+
+    carrera_documento = carrera_practica
+    if tipo_modulo == 's':
+        carrera_documento = carrera_nombre
+
     context = {
         'nombre': nombre_minusculas_practica,
         'NOMBRE': nombre_practica,
         'matricula': matricula_practica,
         'MATRICULA': matricula_practica,
+        'matricula_alumno': matricula_practica,
         'carrera': carrera_practica,
-        'CARRERA': carrera_practica,
+        'CARRERA': carrera_documento,
+        'carrera_generacion': f'{carrera_practica} / {alumno.generacion_completa}' if carrera_practica else alumno.generacion_completa,
+        'CARRERA_GENERACION': f'{carrera_practica} / {alumno.generacion_completa}' if carrera_practica else alumno.generacion_completa,
         'generacion': alumno.generacion_completa,
         'GENERACION': alumno.generacion_completa,
         'estatus': alumno.estatus or '',
@@ -188,6 +415,8 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
         'SECTOR': (expediente.sector or '').upper(),
         'dependencia': dependencia.nombre if dependencia else '',
         'DEPENDENCIA': (dependencia.nombre if dependencia else '').upper(),
+        'dependencia_asignada': dependencia.nombre if dependencia else '',
+        'DEPENDENCIA_ASIGNADA': (dependencia.nombre if dependencia else '').upper(),
         'dependencia_nombre': dependencia.nombre if dependencia else '',
         'dependencia_direccion': getattr(dependencia, 'domicilio', '') if dependencia else '',
         'dependencia_contacto': getattr(dependencia, 'contacto', '') if dependencia else '',
@@ -208,9 +437,11 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
         'FINICIO': fecha_inicio_practicas,
         'FFIN': fecha_fin_practicas,
         'EMPRESA': empresa_practica,
+        **semestres_context,
     }
 
-    doc.render(context)
+    if tipo_modulo != 's':
+        doc.render(context)
 
     # Save generated file
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -222,6 +453,15 @@ def generar_documento_word(alumno_id, tipo_modulo, template_name=None):
 
     output_path = os.path.join(ruta_absoluta_dir, filename)
     doc.save(output_path)
+
+    if tipo_modulo == 's':
+        _reemplazar_marcadores_servicio(output_path, {
+            'NOMBRE': alumno.nombre,
+            'NSEMESTRE': semestres_context['nsemestre'],
+            'CARRERA': carrera_documento,
+            'MATRICULA': alumno.matricula,
+            'DEPENDENCIA': dependencia.nombre if dependencia else '',
+        })
 
     if tipo_modulo == 'p':
         turno = practica.turno if practica else ''
@@ -274,11 +514,23 @@ def generar_documento_pdf(alumno_id, tipo_modulo, template_name=None):
 
 
 def listar_plantillas_word():
-    """Retorna una lista de diccionarios con clave y nombre para las plantillas en la carpeta de plantillas Word."""
-    carpeta = current_app.config.get('TEMPLATES_WORD_FOLDER')
-    if not carpeta or not os.path.isdir(carpeta):
-        return []
-    archivos = [f for f in os.listdir(carpeta) if f.lower().endswith('.docx')]
-    # Ordenar alfabéticamente
-    archivos.sort()
-    return [{'key': os.path.splitext(f)[0], 'display_name': f.replace('_', ' ').replace('.docx', '')} for f in archivos]
+    """Retorna las plantillas administrables y los machotes institucionales."""
+    carpetas = [current_app.config.get('TEMPLATES_WORD_FOLDER')]
+    project_root = os.path.dirname(current_app.root_path)
+    carpetas.append(os.path.join(project_root, 'machotes'))
+
+    archivos = {}
+    for carpeta in carpetas:
+        if not carpeta or not os.path.isdir(carpeta):
+            continue
+        for filename in os.listdir(carpeta):
+            if filename.lower().endswith('.docx') and filename not in archivos:
+                archivos[filename] = filename
+
+    return [
+        {
+            'key': os.path.splitext(filename)[0],
+            'display_name': filename.replace('_', ' ').replace('.docx', ''),
+        }
+        for filename in sorted(archivos, key=str.lower)
+    ]

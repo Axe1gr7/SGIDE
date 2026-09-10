@@ -10,12 +10,16 @@
   --prac-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
   --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
   --prac-radius: 20px;
+    --prac-table-sticky-bg: #ffffff;
+    --prac-table-sticky-selected-bg: #c6f1e8;
 }
 [data-theme="dark"] {
   --prac-glass: rgba(15,23,42,0.55);
   --prac-border: rgba(255,255,255,0.12);
   --prac-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
   --prac-hover-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+    --prac-table-sticky-bg: #1e293b;
+    --prac-table-sticky-selected-bg: #145e58;
 }
 
 .prac-breadcrumb {
@@ -88,6 +92,82 @@
   border-radius: 16px;
   box-shadow: var(--prac-shadow);
 }
+
+.filtros-modal {
+    max-width: 820px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+.filtros-actions-top {
+    position: sticky;
+    top: -1px;
+    z-index: 5;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin: 0 -1px 18px;
+    padding: 12px 1px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--glass-border);
+}
+.filtros-actions-top button {
+    min-width: 132px;
+}
+#favoritosContainer {
+    width: 100%;
+}
+.favoritos-row {
+    display: grid;
+    width: 100%;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 12px;
+}
+.favoritos-row:last-child {
+    margin-bottom: 0;
+}
+.favoritos-row-cols-1 {
+    grid-template-columns: minmax(0, 1fr);
+}
+.favoritos-row-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.favoritos-row-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.selected-practica-row > td {
+    background: rgba(45, 190, 166, 0.22) !important;
+    box-shadow: inset 0 1px 0 rgba(45, 190, 166, 0.28), inset 0 -1px 0 rgba(45, 190, 166, 0.28);
+}
+.detalles-columna-nombre {
+    position: sticky !important;
+    left: 0;
+    z-index: 3;
+    min-width: 180px;
+    width: 180px;
+    background: var(--prac-table-sticky-bg) !important;
+    box-shadow: 6px 0 10px rgba(15, 23, 42, 0.12);
+}
+thead .detalles-columna-nombre {
+    top: 0 !important;
+    z-index: 10 !important;
+    background: var(--prac-table-sticky-bg) !important;
+}
+.selected-practica-row > .detalles-columna-nombre {
+    background: var(--prac-table-sticky-selected-bg) !important;
+}
+@media (max-width: 680px) {
+    .favoritos-row-cols-2,
+    .favoritos-row-cols-3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .filtros-actions-top {
+        justify-content: stretch;
+    }
+    .filtros-actions-top button {
+        flex: 1;
+    }
+}
 </style>
 {% endblock %}
 
@@ -146,19 +226,24 @@
 
 {# ── Modal de Filtros ────────────────────────────────────────────────────── #}
 <div id="filtrosOverlay" class="glass-modal-overlay">
-    <div class="glass-modal" style="max-width: 820px; max-height: 85vh; overflow-y: auto;">
+    <div class="glass-modal filtros-modal">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3 style="margin: 0;"><i class="fa-solid fa-filter" style="color: var(--accent);"></i> Filtros Avanzados</h3>
             <button id="btnCloseFilters" class="glass-btn glass-btn-outline glass-btn-small" style="border: none; font-size: 1.2rem; padding: 4px 8px;">✕</button>
         </div>
 
         <form method="GET" action="{{ url_for('practicas.detalles') }}" id="filtrosForm">
+            <div class="filtros-actions-top">
+                <button type="button" id="btnCancelFilters" class="glass-btn glass-btn-outline">Cancelar</button>
+                <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Aplicar Filtros</button>
+            </div>
+
             {# ── Favoritos ── #}
             <div id="favoritosSection" style="margin-bottom: 20px; display: none;">
                 <h4 style="margin: 0 0 10px 0; color: var(--accent); display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-star"></i> Filtros Favoritos
                 </h4>
-                <div id="favoritosContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(255,215,0,0.05); padding: 14px; border-radius: 8px; border: 1px dashed rgba(255,215,0,0.3);">
+                <div id="favoritosContainer" class="favoritos-cols-1" style="background: rgba(255,215,0,0.05); padding: 14px; border-radius: 8px; border: 1px dashed rgba(255,215,0,0.3);">
                 </div>
             </div>
 
@@ -186,6 +271,20 @@
 
             {# ── Selectores ── #}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <div id="orig-parent-f_carpeta">
+                    <div class="form-group filter-item" id="filter-f_carpeta" data-filter-id="f_carpeta" style="margin-bottom: 0;">
+                        <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>CARPETA (BLOQUE)</span>
+                            <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
+                        </label>
+                        <select name="f_carpeta" class="glass-select" style="font-size: 0.88rem;">
+                            <option value="">Todos</option>
+                            {% for opt in carpeta_opts %}
+                            <option value="{{ opt }}" {% if request.args.get('f_carpeta') == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
                 {% for param_name, db_field, options, label in filtros_selector %}
                 <div id="orig-parent-{{ param_name }}">
                     <div class="form-group filter-item" id="filter-{{ param_name }}" data-filter-id="{{ param_name }}" style="margin-bottom: 0;">
@@ -202,22 +301,6 @@
                     </div>
                 </div>
                 {% endfor %}
-
-                {# ── Filtro CARPETA (Bloque) ── #}
-                <div id="orig-parent-carpeta">
-                    <div class="form-group filter-item" id="filter-carpeta" data-filter-id="carpeta" style="margin-bottom: 0;">
-                        <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
-                            <span>CARPETA (Bloque)</span>
-                            <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
-                        </label>
-                        <select name="f_carpeta" class="glass-select" style="font-size: 0.88rem;">
-                            <option value="">Todos</option>
-                            {% for opt in carpeta_opts %}
-                            <option value="{{ opt }}" {% if request.args.get('f_carpeta') == opt %}selected{% endif %}>{{ opt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
             </div>
 
             {# ── Filtros de rango de fecha ── #}
@@ -239,7 +322,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
                         {% for param_prefix, db_field, label in filtros_fecha %}
                         <div id="orig-parent-{{ param_prefix }}">
-                            <div class="form-group filter-item" id="filter-{{ param_prefix }}" data-filter-id="{{ param_prefix }}" style="margin-bottom: 0;">
+                            <div class="form-group filter-item" id="filter-{{ param_prefix }}" data-filter-id="{{ param_prefix }}" data-filter-kind="date" style="margin-bottom: 0;">
                                 <label class="form-label" style="font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
                                     <span>{{ label }}</span>
                                     <button type="button" class="btn-fav" title="Marcar como favorito" style="background: none; border: none; cursor: pointer; color: var(--text-muted);"><i class="fa-regular fa-star"></i></button>
@@ -277,11 +360,6 @@
                 </div>
             </details>
 
-            {# ── Botones ── #}
-            <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--glass-border);">
-                <button type="button" id="btnCancelFilters" class="glass-btn glass-btn-outline">Cancelar</button>
-                <button type="submit" class="glass-btn"><i class="fa-solid fa-check"></i> Aplicar Filtros</button>
-            </div>
         </form>
     </div>
 </div>
@@ -296,19 +374,19 @@
                 <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2;">#</th>
                 {% for field, header in columnas_mapa %}
                 {% if field in columnas_activas %}
-                <th style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2; font-size: 0.72rem;">{{ header }}</th>
+                <th class="{% if field == 'nombre_minusculas' %}detalles-columna-nombre{% endif %}" style="white-space: nowrap; position: sticky; top: 0; background: var(--bg-glass); z-index: 2; font-size: 0.72rem;">{{ header }}</th>
                 {% endif %}
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for p in practicas %}
-            <tr>
+            <tr class="{% if selected_practica_id == p.id %}selected-practica-row{% endif %}">
                 <td style="text-align: center; white-space: nowrap;"><input type="radio" name="selected_practica" value="{{ p.id }}" data-edit-url="{{ url_for('practicas.editar_practica', practica_id=p.id) }}" data-action-delete-url="{{ url_for('practicas.eliminar_practica', practica_id=p.id) }}" data-delete-name="el registro {{ p.no_registro }}" {% if selected_practica_id == p.id %}checked{% endif %} aria-label="Seleccionar registro {{ p.no_registro }}"></td>
                 <td style="white-space: nowrap; color: var(--text-muted); font-size: 0.82rem;">{{ loop.index }}</td>
                 {% for field, header in columnas_mapa %}
                 {% if field in columnas_activas %}
-                <td style="white-space: nowrap; font-size: 0.85rem;">
+                <td class="{% if field == 'nombre_minusculas' %}detalles-columna-nombre{% endif %}" style="white-space: nowrap; font-size: 0.85rem;">
                     {% set val = p|attr(field) %}
                     {% if val is none %}
                         <span style="color: var(--text-muted);">—</span>
@@ -365,6 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function closeModal() { overlay.classList.remove('active'); }
 
     function updateSelectedActions(input) {
+        selectedRows.forEach(function (rowInput) {
+            const row = rowInput.closest('tr');
+            if (row) row.classList.toggle('selected-practica-row', rowInput === input);
+        });
         btnEditSelected.href = input.dataset.editUrl;
         btnEditSelected.style.opacity = '1';
         btnEditSelected.style.pointerEvents = 'auto';
@@ -418,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const favoritosSection = document.getElementById('favoritosSection');
     
     function toggleFavorite(id, el, updateStorage=true) {
-        const isFav = el.parentElement.id === 'favoritosContainer';
+        const isFav = favoritosContainer.contains(el);
         const btn = el.querySelector('.btn-fav i');
         
         const origParent = document.getElementById('orig-parent-' + id);
@@ -448,7 +530,53 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        if(favoritosContainer.children.length > 0) {
+        if(favoritosContainer.querySelector('.filter-item')) {
+            favoritosSection.style.display = 'block';
+        } else {
+            favoritosSection.style.display = 'none';
+        }
+        actualizarFilasFavoritos();
+    }
+
+    function actualizarFilasFavoritos() {
+        const favoritos = Array.from(favoritosContainer.querySelectorAll('.filter-item'));
+        favoritosContainer.querySelectorAll('.favoritos-row').forEach(function (row) {
+            row.remove();
+        });
+
+        let fila = [];
+        function agregarFila() {
+            if (!fila.length) return;
+            const row = document.createElement('div');
+            row.className = 'favoritos-row favoritos-row-cols-' + fila.length;
+            fila.forEach(function (item) {
+                row.appendChild(item);
+            });
+            favoritosContainer.appendChild(row);
+            fila = [];
+        }
+
+        favoritos.forEach(function (item) {
+            const esFecha = item.dataset.filterKind === 'date';
+            const filaTieneFecha = fila.some(function (actual) {
+                return actual.dataset.filterKind === 'date';
+            });
+            if (fila.length === 2 && (esFecha || filaTieneFecha)) {
+                agregarFila();
+            }
+
+            fila.push(item);
+
+            const todosNoFecha = fila.every(function (actual) {
+                return actual.dataset.filterKind !== 'date';
+            });
+            if (fila.length === 3 || (fila.length === 2 && !todosNoFecha)) {
+                agregarFila();
+            }
+        });
+        agregarFila();
+
+        if (favoritos.length) {
             favoritosSection.style.display = 'block';
         } else {
             favoritosSection.style.display = 'none';
@@ -471,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleFavorite(id, el, false);
         }
     });
+    actualizarFilasFavoritos();
 });
 </script>
 {% endblock %}

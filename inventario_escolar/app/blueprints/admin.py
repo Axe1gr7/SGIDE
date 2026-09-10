@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from werkzeug.utils import secure_filename
 from app.extensions import db
-from app.models import User, Carrera, Alumno, Role, Expediente, Documento
+from app.models import User, Carrera, Alumno, Role, Expediente, Documento, Practica
 from app.decorators import roles_required, active_query
 from app.services.logic_excel import procesar_excel
 from app.services.logic_expediente import registrar_alumno, sincronizar_carreras_practicas
@@ -157,6 +157,7 @@ def crear_alumno():
 def editar_alumno(id):
     alumno = active_query(Alumno).filter_by(id=id).first_or_404()
     if request.method == 'POST':
+        matricula_original = alumno.matricula
         alumno.nombre = request.form.get('nombre') or None
         alumno.matricula = request.form.get('matricula') or None
         anio_generacion = request.form.get('anio_generacion')
@@ -166,6 +167,23 @@ def editar_alumno(id):
         alumno.estatus = request.form.get('estatus', 'Activo') or 'Activo'
         carrera_id = request.form.get('carrera_id')
         alumno.carrera_id = int(carrera_id) if carrera_id else None
+        carrera_actual = active_query(Carrera).filter_by(id=alumno.carrera_id).first() if alumno.carrera_id else None
+        filtros_relacionados = [Practica.alumno_id == alumno.id]
+        if matricula_original:
+            filtros_relacionados.append(Practica.matricula == matricula_original)
+        practicas_relacionadas = Practica.query.filter(
+            Practica.is_deleted == False,
+            db.or_(*filtros_relacionados),
+        ).all()
+        for practica in practicas_relacionadas:
+            practica.nombre = alumno.nombre
+            practica.nombre_minusculas = (alumno.nombre or '').title() or None
+            practica.matricula = alumno.matricula
+            practica.carrera = carrera_actual.nombre.upper() if carrera_actual else None
+            practica.generacion = (
+                alumno.generacion_completa
+                if alumno.generacion_completa != 'Pendiente' else None
+            )
         db.session.commit()
         flash('Alumno actualizado.', 'success')
         return redirect(url_for('admin.alumnos'))

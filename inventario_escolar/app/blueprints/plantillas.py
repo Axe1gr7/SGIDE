@@ -20,6 +20,40 @@ TIPO_PLANTILLA_PRACTICAS = 'acreditacion_pp'
 NOMBRE_PLANTILLA_PRACTICAS = 'Formato Constancia de Acreditacion PP'
 
 
+def _carpetas_plantillas():
+    """Devuelve las fuentes de plantillas en orden de prioridad."""
+    templates_dir = current_app.config['TEMPLATES_WORD_FOLDER']
+    project_root = os.path.dirname(current_app.root_path)
+    return (
+        ('templates_word', templates_dir),
+        ('machotes', os.path.join(project_root, 'machotes')),
+    )
+
+
+def _archivos_plantillas():
+    """Combina plantillas administrables y machotes sin duplicarlas por nombre."""
+    archivos = {}
+    for source, carpeta in _carpetas_plantillas():
+        if not os.path.isdir(carpeta):
+            continue
+        for filename in os.listdir(carpeta):
+            if filename.lower().endswith('.docx') and filename not in archivos:
+                archivos[filename] = {
+                    'filename': filename,
+                    'path': os.path.join(carpeta, filename),
+                    'source': source,
+                }
+    return sorted(archivos.values(), key=lambda item: item['filename'].lower())
+
+
+def _buscar_archivo_plantilla(filename):
+    safe_filename = secure_filename(filename)
+    for item in _archivos_plantillas():
+        if item['filename'] == safe_filename:
+            return item
+    return None
+
+
 @plantillas_bp.before_request
 @login_required
 @roles_required('Super Admin', 'Practicas', 'Servicio', 'Vinculacion')
@@ -33,21 +67,24 @@ def lista():
     target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
     os.makedirs(target_dir, exist_ok=True)
 
-    archivos = [f for f in os.listdir(target_dir) if f.lower().endswith('.docx')]
-    archivos.sort()
-
     plantillas_data = []
-    for f in archivos:
-        path = os.path.join(target_dir, f)
+    for archivo in _archivos_plantillas():
+        f = archivo['filename']
+        path = archivo['path']
         stat = os.stat(path)
         
         # Categorizar por módulo según prefijo o base
         mod_type = 'general'
-        if 'practica' in f.lower() or f.startswith('p_'):
+        nombre_normalizado = f.lower()
+        if (
+            'practica' in nombre_normalizado
+            or 'acreditacion' in nombre_normalizado
+            or f.startswith('p_')
+        ):
             mod_type = 'p'
-        elif 'servicio' in f.lower() or f.startswith('s_'):
+        elif 'servicio' in nombre_normalizado or nombre_normalizado.startswith('fss') or f.startswith('s_'):
             mod_type = 's'
-        elif 'vinculacion' in f.lower() or f.startswith('v_'):
+        elif 'vinculacion' in nombre_normalizado or f.startswith('v_'):
             mod_type = 'v'
 
         if modulo_filter and modulo_filter != mod_type and mod_type != 'general':
@@ -60,6 +97,8 @@ def lista():
             'size_kb': round(stat.st_size / 1024, 1),
             'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%d/%m/%Y %H:%M'),
             'is_base': any(info['filename'] == f for info in PLANTILLAS_BASE.values())
+                or archivo['source'] == 'machotes',
+            'source': archivo['source'],
         })
 
     alumnos = active_query(Alumno).order_by(Alumno.nombre).all()
@@ -116,12 +155,10 @@ def subir():
 
 @plantillas_bp.route('/descargar/<filename>')
 def descargar(filename):
-    target_dir = current_app.config['TEMPLATES_WORD_FOLDER']
-    safe_file = secure_filename(filename)
-    path = os.path.join(target_dir, safe_file)
-    if not os.path.exists(path):
+    archivo = _buscar_archivo_plantilla(filename)
+    if not archivo:
         abort(404)
-    return send_file(path, as_attachment=True, download_name=safe_file)
+    return send_file(archivo['path'], as_attachment=True, download_name=archivo['filename'])
 
 
 @plantillas_bp.route('/eliminar/<filename>', methods=['POST'])

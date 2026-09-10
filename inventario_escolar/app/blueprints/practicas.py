@@ -372,26 +372,26 @@ FILTROS_SELECTOR = [
     ('f_cons_t',          'cons_t',           Practica.OPTS_SNC,          'CONS.T'),
 ]
 
-# Opciones del filtro CARPETA (Bloque)
+# Opciones del filtro CARPETA (BLOQUE)
 CARPETA_OPTS = ['BLOQUE 1', 'BLOQUE 2', 'BLOQUE 3']
 
 # Filtros de rango de fecha: (param_prefix, campo_db, label)
 # Cada uno genera dos parámetros: {param_prefix}_desde y {param_prefix}_hasta
 FILTROS_FECHA = [
-    ('fd_s_prac_fecha',    's_prac_fecha_excel',   'S. PRÁC. (Fecha)'),
-    ('fd_f_inicio',        'f_inicio',             'F. INICIO'),
-    ('fd_c_pres_fecha',    'c_pres_fecha_excel',   'C.PRES. (Fecha)'),
-    ('fd_f_cp',            'f_cp',                 'F.C.P'),
-    ('fd_c_acep_fecha',    'c_acep_fecha_excel',   'C. ACEP. (Fecha)'),
-    ('fd_f_ca',            'f_ca',                 'F.C.A'),
-    ('fd_p_trabj_fecha',   'p_trabj_fecha_excel',  'P. TRABJ. (Fecha)'),
-    ('fd_f_ptr',           'f_ptr',                'F. P.TR'),
-    ('fd_i_inter_fecha',   'i_inter_fecha_excel',  'I. INTER. (Fecha)'),
-    ('fd_f_ii',            'f_ii',                 'F.I.I.'),
-    ('fd_f_l_ii',          'f_l_ii',               'F.L. I.I.'),
-    ('fd_f_i_final',       'f_i_final',            'F.I.FINAL'),
-    ('fd_f_re_final',      'f_re_final',           'F.R-E FINAL'),
-    ('fd_f_ct',            'f_ct',                 'F.C.T (Paso por constancia)'),
+    ('fd_s_prac_fecha',      's_prac_fecha_excel',   'S. PRÁC. (Fecha)'),
+    ('fd_f_inicio',          'f_inicio',             'F. INICIO'),
+    ('fd_c_pres_fecha',      'c_pres_fecha_excel',   'C.PRES. (Fecha)'),
+    ('fd_f_cp',              'f_cp',                 'F.C.P'),
+    ('fd_c_acep_fecha',      'c_acep_fecha_excel',   'C. ACEP. (Fecha)'),
+    ('fd_f_ca',              'f_ca',                 'F.C.A'),
+    ('fd_p_trabj_fecha',     'p_trabj_fecha_excel',  'P. TRABJ. (Fecha)'),
+    ('fd_f_ptr',             'f_ptr',                'F. P.TR'),
+    ('fd_i_inter_fecha',     'i_inter_fecha_excel',  'I. INTER. (Fecha)'),
+    ('fd_f_ii',              'f_ii',                 'F.I.I.'),
+    ('fd_f_l_ii',            'f_l_ii',               'F.L. I.I.'),
+    ('fd_f_i_final',         'f_i_final',            'F.I.FINAL'),
+    ('fd_f_re_final',        'f_re_final',           'F.R-E FINAL'),
+    ('fd_paso_por_constancia','paso_por_constancia',  'FECHA DE PASO POR CONSTANCIA'),
 ]
 
 
@@ -403,6 +403,77 @@ def _parse_date_param(value):
         return datetime.strptime(value.strip(), '%Y-%m-%d').date()
     except (ValueError, TypeError):
         return None
+
+
+def _parse_date_value(value):
+    """Intenta convertir valores de texto de la BD a date para comparar filtros."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str):
+        return None
+
+    texto = value.strip()
+    if not texto:
+        return None
+
+    texto = texto.split(' ')[0]
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d'):
+        try:
+            return datetime.strptime(texto, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _matchea_bloque(resumen_observaciones, bloque):
+    """Aplica la regla de bloques sobre la columna RESUMEN -OBSERVACIONES."""
+    texto = (resumen_observaciones or '').strip()
+    texto_norm = texto.upper()
+    bloque_norm = bloque.upper()
+
+    if bloque_norm == 'BLOQUE 3':
+        return 'BLOQUE 3' in texto_norm or not texto
+    return bloque_norm in texto_norm
+
+
+def _matchea_fecha_paso_por_constancia(valor, desde=None, hasta=None):
+    """Valida que el campo de texto tenga una fecha parseable y esté dentro del rango."""
+    fecha = _parse_date_value(valor)
+    if fecha is None:
+        return False
+    if desde and not hasta:
+        return fecha == desde
+    if hasta and not desde:
+        return fecha == hasta
+    if desde and fecha < desde:
+        return False
+    if hasta and fecha > hasta:
+        return False
+    return True
+
+
+def _aplicar_filtros_especiales(practicas):
+    """Aplica filtros complejos que no pueden expresarse con un filtrado SQL simple."""
+    carpeta_val = request.args.get('f_carpeta', '').strip()
+    if carpeta_val:
+        practicas = [
+            p for p in practicas
+            if _matchea_bloque(getattr(p, 'resumen_observaciones', None), carpeta_val)
+        ]
+
+    paso_desde = _parse_date_param(request.args.get('fd_paso_por_constancia_desde'))
+    paso_hasta = _parse_date_param(request.args.get('fd_paso_por_constancia_hasta'))
+    if paso_desde or paso_hasta:
+        practicas = [
+            p for p in practicas
+            if _matchea_fecha_paso_por_constancia(getattr(p, 'paso_por_constancia', None), paso_desde, paso_hasta)
+        ]
+
+    return practicas
 
 
 def _build_detalles_query():
@@ -439,27 +510,19 @@ def _build_detalles_query():
     if gen:
         query = query.filter(Practica.generacion.ilike(f'%{gen}%'))
 
-    # Filtro por CARPETA (Bloque)
-    carpeta_val = request.args.get('f_carpeta', '').strip()
-    if carpeta_val:
-        if carpeta_val == 'BLOQUE 3':
-            query = query.filter(
-                (Practica.carpeta == None) | (Practica.carpeta == '')
-            )
-        else:
-            query = query.filter(Practica.carpeta == carpeta_val)
-
-    # Filtros de rango de fecha
+    # Filtros de rango de fecha (excluye el especial de PASO POR CONSTANCIA porque se evalúa sobre texto)
     for param_prefix, db_field, _label in FILTROS_FECHA:
+        if param_prefix == 'fd_paso_por_constancia':
+            continue
         desde = _parse_date_param(request.args.get(f'{param_prefix}_desde'))
         hasta = _parse_date_param(request.args.get(f'{param_prefix}_hasta'))
         col = getattr(Practica, db_field)
         if desde and hasta:
             query = query.filter(col >= desde, col <= hasta)
         elif desde:
-            query = query.filter(col >= desde)
+            query = query.filter(col == desde)
         elif hasta:
-            query = query.filter(col <= hasta)
+            query = query.filter(col == hasta)
 
     return query.order_by(Practica.no_registro)
 
@@ -477,7 +540,7 @@ def _get_columnas_activas():
 @practicas_bp.route('/detalles')
 def detalles():
     query = _build_detalles_query()
-    practicas = query.all()
+    practicas = _aplicar_filtros_especiales(query.all())
     columnas_activas = _get_columnas_activas()
     selected_practica_id = request.args.get('practica_id', type=int)
 
@@ -525,7 +588,7 @@ def exportar_detalles():
     from openpyxl.worksheet.table import Table, TableStyleInfo
 
     query = _build_detalles_query()
-    practicas = query.all()
+    practicas = _aplicar_filtros_especiales(query.all())
     columnas_activas = _get_columnas_activas()
 
     # Filtrar solo las columnas visibles
@@ -725,9 +788,9 @@ def alumnos():
         )
 
         # Filtro según tipo_consulta
-        if tipo_consulta == 'aprobados' and not practicas_concluidas:
+        if tipo_consulta == 'aprobados' and estatus_practicas != 'CONCLUIDO':
             continue
-        elif tipo_consulta == 'aptos' and not ss_completo:
+        elif tipo_consulta == 'aptos' and estatus_practicas != 'APTO':
             continue
         elif tipo_consulta == 'en_tramite' and estatus_practicas != 'EN TRÁMITE':
             continue
@@ -947,6 +1010,28 @@ def _sincronizar_datos_practica(practica, alumno, dependencia=None):
         practica.direccion_empresa = dependencia.domicilio
         practica.correo_empresa = dependencia.correo
     return dependencia
+
+
+def _actualizar_alumno_desde_formulario_practica(alumno, formulario):
+    """Actualiza los datos compartidos del alumno desde el formulario de prácticas."""
+    alumno.nombre = formulario.get('nombre', '').strip() or None
+    alumno.matricula = formulario.get('matricula', '').strip() or None
+
+    carrera_nombre = formulario.get('carrera', '').strip()
+    if carrera_nombre:
+        carrera = resolver_carrera_practicas(carrera_nombre)
+        if carrera:
+            alumno.carrera_id = carrera.id
+
+    generacion = formulario.get('generacion', '').strip()
+    if generacion:
+        partes = [parte.strip() for parte in generacion.split('-', 1)]
+        try:
+            alumno.anio_generacion = int(partes[0])
+            if len(partes) == 2 and partes[1]:
+                alumno.anio_egreso = int(partes[1])
+        except ValueError:
+            pass
 
 
 @practicas_bp.route('/alumnos/<int:alumno_id>/expediente')
@@ -1393,6 +1478,9 @@ def editar_practica(practica_id):
                 flash(error, 'danger')
             return redirect(request.url)
 
+        matricula_original = alumno.matricula
+        _actualizar_alumno_desde_formulario_practica(alumno, request.form)
+
         consecutivo_original = practica.consecutivo
         date_fields = {
             field for field, column in Practica.__table__.columns.items()
@@ -1405,6 +1493,8 @@ def editar_practica(practica_id):
         }
         for field in COLUMNAS_MAPA:
             nombre_campo = field[0]
+            if nombre_campo == 'nombre_minusculas':
+                continue
             valor = request.form.get(nombre_campo, '').strip()
             if nombre_campo in date_fields:
                 valor = datetime.strptime(valor, '%Y-%m-%d').date() if valor else None
@@ -1428,6 +1518,16 @@ def editar_practica(practica_id):
             'consecutivo', excluir_id=practica.id
         )
         _sincronizar_datos_practica(practica, alumno)
+        filtros_relacionados = [Practica.alumno_id == alumno.id]
+        if matricula_original:
+            filtros_relacionados.append(Practica.matricula == matricula_original)
+        practicas_relacionadas = Practica.query.filter(
+            Practica.is_deleted == False,
+            Practica.id != practica.id,
+            db.or_(*filtros_relacionados),
+        ).all()
+        for practica_relacionada in practicas_relacionadas:
+            _sincronizar_datos_practica(practica_relacionada, alumno)
         db.session.commit()
         flash('Registro de prácticas actualizado exitosamente.', 'success')
         return redirect(url_for('practicas.detalles', practica_id=practica.id))

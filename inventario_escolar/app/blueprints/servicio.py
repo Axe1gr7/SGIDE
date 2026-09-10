@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Expediente, Documento, Carrera, Alumno, Dependencia
 from app.decorators import roles_required, active_query
-from app.services.logic_word import generar_documento_pdf, generar_documento_word
+from app.services.logic_word import generar_documento_word, listar_plantillas_word
 from app.services.file_manager import guardar_documento, obtener_ruta_absoluta
 from app.services.logic_excel import procesar_excel
 from app.services.logic_zip import procesar_zip_pdfs
@@ -305,12 +305,18 @@ def detalle(id):
     dependencias = active_query(Dependencia).filter(
         db.func.lower(Dependencia.tipo).in_(['servicio', 'ambos'])
     ).order_by(Dependencia.nombre).all()
+    plantillas_servicio = [
+        plantilla for plantilla in listar_plantillas_word()
+        if plantilla['key'].lower().startswith('fss')
+        or 'servicio' in plantilla['key'].lower()
+    ]
     return render_template('expedientes/detalle.html',
                            expediente=expediente,
                            alumno=expediente.alumno,
                            documentos=documentos,
                            sectores=obtener_sectores_dinamicos(),
                            dependencias=dependencias,
+                           plantillas_servicio=plantillas_servicio,
                            es_servicio=True,
                            modulo_label=MODULO_LABEL,
                            modulo_tipo=MODULO_TIPO,
@@ -437,8 +443,22 @@ def descargar_archivo(id, doc_id):
 @servicio_bp.route('/<int:id>/generar-word', methods=['POST'])
 def generar_word(id):
     expediente = active_query(Expediente).filter_by(id=id, tipo_modulo=MODULO_TIPO).first_or_404()
+    template_name = request.form.get('template_name', '').strip()
+    plantillas_validas = {
+        f"{plantilla['key']}.docx"
+        for plantilla in listar_plantillas_word()
+        if plantilla['key'].lower().startswith('fss')
+        or 'servicio' in plantilla['key'].lower()
+    }
+    if template_name and template_name not in plantillas_validas:
+        flash('La plantilla seleccionada no pertenece a Servicio Social.', 'danger')
+        return redirect(url_for(f'{MODULO_PREFIX}.detalle', id=id))
     try:
-        output_path, filename = generar_documento_word(expediente.alumno_id, MODULO_TIPO)
+        output_path, filename = generar_documento_word(
+            expediente.alumno_id,
+            MODULO_TIPO,
+            template_name=template_name or None,
+        )
         return send_file(output_path, as_attachment=True, download_name=filename)
     except Exception as e:
         flash(f'Error al generar el documento: {str(e)}', 'danger')
@@ -452,7 +472,11 @@ def generar_word_documento(id, doc_id):
     template_name = f"{doc.nombre_formato}.docx"
     
     try:
-        output_path, filename = generar_documento_pdf(expediente.alumno_id, MODULO_TIPO, template_name=template_name)
+        output_path, filename = generar_documento_word(
+            expediente.alumno_id,
+            MODULO_TIPO,
+            template_name=template_name,
+        )
         return send_file(output_path, as_attachment=True, download_name=filename)
     except Exception as e:
         flash(f'Error al generar el formato {doc.nombre_formato}: {str(e)}', 'danger')
